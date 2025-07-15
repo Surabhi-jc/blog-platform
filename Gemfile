@@ -1,6 +1,7 @@
 source "https://rubygems.org"
 
 gem 'bcrypt', '~> 3.1.7'
+gem 'jwt'
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
 gem "rails", "~> 8.0.2"
