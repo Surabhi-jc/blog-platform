@@ -17,6 +17,9 @@ Rails.application.routes.draw do
   post "/signup", to: "users#create"
   post "/login", to: "authentication#login"
   post "/blog", to: "blogs#create"
+  patch "/blog/:id", to: "blogs#update"
+  delete "/blog/:id", to: "blogs#destroy"
+  get "/blog/show", to: "blogs#show"
 
   
 end
