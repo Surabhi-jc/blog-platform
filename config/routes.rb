@@ -20,6 +20,7 @@ Rails.application.routes.draw do
   patch "/blog/:id", to: "blogs#update"
   delete "/blog/:id", to: "blogs#destroy"
   get "/blog/show", to: "blogs#show"
+  get "/blog/show_blog", to: "blogs#prefered_blogs"
 
-  
+  resources :likes, only: [:create]
 end

@@ -2,15 +2,17 @@ class BlogsController < ApplicationController
     protect_from_forgery with: :null_session
 
     before_action :authorize_request
-    before_action :find_blog
+    before_action :find_blog    
+
     skip_before_action :authorize_request, only: [:show]
-    skip_before_action :find_blog, only: [:show]
+    skip_before_action :find_blog, only: [:show, :create, :prefered_blogs]
 
 
     def create
         blog= @current_user.blogs.new(blog_params)
 
         if blog.save
+            blog.tag_ids = blog_params[:tag_ids] if blog_params[:tag_ids]
             render json: {message: "Blog creation successful", blog: blog}, status: :created
         else
             render json: {errors: blog.errors.full_messages }, status: :unprocessable_entity
@@ -43,6 +45,18 @@ class BlogsController < ApplicationController
         end
     end
 
+    #show user preferred blogs on the top
+    def prefered_blogs
+        p_tags= UserTag.where(user_id: @current_user.id).pluck(:tag_id)    #pluck-only tagid column from row
+
+        p_blogs= Blog.joins(:tags).where(tags: {id: p_tags}).distinct
+
+        other_blogs= Blog.where.not(id: p_blogs.pluck(:id))
+
+        blogs= p_blogs + other_blogs
+
+        render json: {blogs: blogs}, status: :ok
+    end
 
 
 
@@ -56,7 +70,7 @@ class BlogsController < ApplicationController
     end
     
     def blog_params
-        params.require(:blog).permit(:title, :content)
+        params.require(:blog).permit(:title, :content, tag_ids: [])
     end
 
 end
