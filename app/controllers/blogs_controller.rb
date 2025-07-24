@@ -4,7 +4,7 @@ class BlogsController < ApplicationController
     before_action :authorize_request
     before_action :find_blog    
 
-    skip_before_action :authorize_request, only: [:show]
+    skip_before_action :authorize_request, only: [:show, :show_blog]
     skip_before_action :find_blog, only: [:show, :create, :prefered_blogs]
 
 
@@ -21,10 +21,36 @@ class BlogsController < ApplicationController
     end
 
     def show
-        blogs=Blog.all
-        render json: blogs, status: :ok
+        blogs=Blog.includes(:user, :tags).all
+        render json: blogs.map {|blog|
+            {
+              id: blog.id,
+              title: blog.title,
+              content: blog.content,
+              author_name: blog.user.name,
+              tags: blog.tags.map(&:name),
+              created_at: blog.created_at
+            }
+        }, status: :ok
     end
 
+    def show_blog
+        blog=Blog.includes(:user, :tags).find_by(id: params[:id])
+        if blog
+        render json: {
+
+              id: blog.id,
+              title: blog.title,
+              content: blog.content,
+              author_name: blog.user.name,
+              tags: blog.tags.map(&:name),
+              created_at: blog.created_at
+            }, status: :ok
+        else
+            render json: {error: "Blog not found"}, status: :not_found
+        end
+
+    end
     def update
         if @blog.user_id != current_user.id
             render json: {error: "Not authorized to update this blog"}, status: :unauthorized

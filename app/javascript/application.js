@@ -4,11 +4,11 @@
 
 import React from "react"
 import ReactDOM from "react-dom/client"
-import Hello from "./components/Hello"
+import LandingPage from "./components/LandingPage"
 
 const rootElement = document.getElementById("react-root")
 
 if (rootElement) {
   const root = ReactDOM.createRoot(rootElement)
-  root.render(<Hello />)
+  root.render(<LandingPage />)
 }

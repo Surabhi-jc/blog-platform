@@ -21,6 +21,7 @@ Rails.application.routes.draw do
   delete "/blog/:id", to: "blogs#destroy"
   get "/blog/show", to: "blogs#show"
   get "/blog/show_blog", to: "blogs#prefered_blogs"
+  get "/blog/:id", to: "blogs#show_blog"
 
   resources :likes, only: [:create]
 end
