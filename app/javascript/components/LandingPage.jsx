@@ -1,12 +1,13 @@
 import React, {useEffect, useState} from "react";
 import "./LandingPage.css";
+import { useNavigate } from "react-router-dom";
 
 const LandingPage = () => {
   const [blogs, setBlogs] = useState([]);
 
   //fetch blogs
   useEffect(()=> {
-    fetch("/blog/show")
+    fetch("/api/blog/show")
     .then((response)=> response.json())
     .then((data) => {
       setBlogs(data);
@@ -16,6 +17,9 @@ const LandingPage = () => {
     });
 
   }, []);
+
+  const navigate = useNavigate();
+
 
   return (
     <div>
@@ -32,7 +36,7 @@ const LandingPage = () => {
       ): (
           <div className="blog-container">
             {blogs.map((blog) => (
-          <div className="blog-card" key={blog.id}>
+          <div className="blog-card" key={blog.id} onClick={() => navigate(`/blogs/${blog.id}`)}>
           <h2>{blog.title}</h2>
             <p>Author: {blog.author_name}</p>
             <p>Tags: {blog.tags.join(",")}</p> {/*Takes an array and combines it into a single string*/}

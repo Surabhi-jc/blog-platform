@@ -2,13 +2,13 @@
 //import "@hotwired/turbo-rails"
 //import "./controllers"
 
-import React from "react"
-import ReactDOM from "react-dom/client"
-import LandingPage from "./components/LandingPage"
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App"; // or LandingPage if you're not using routing yet
 
-const rootElement = document.getElementById("react-root")
+const rootElement = document.getElementById("react-root");
 
 if (rootElement) {
-  const root = ReactDOM.createRoot(rootElement)
-  root.render(<LandingPage />)
+  const root = ReactDOM.createRoot(rootElement);
+  root.render(<App />);
 }

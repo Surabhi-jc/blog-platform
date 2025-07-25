@@ -12,16 +12,17 @@ Rails.application.routes.draw do
 
   # Defines the root path route ("/")
   root "home#index"
-  
+
+
   #route for user signup
   post "/signup", to: "users#create"
   post "/login", to: "authentication#login"
   post "/blog", to: "blogs#create"
   patch "/blog/:id", to: "blogs#update"
   delete "/blog/:id", to: "blogs#destroy"
-  get "/blog/show", to: "blogs#show"
+  get "/api/blog/show", to: "blogs#show"
   get "/blog/show_blog", to: "blogs#prefered_blogs"
-  get "/blog/:id", to: "blogs#show_blog"
+  get "/api/blog/:id", to: "blogs#show_blog"
 
   resources :likes, only: [:create]
 end
