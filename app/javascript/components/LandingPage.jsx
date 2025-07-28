@@ -25,7 +25,7 @@ const LandingPage = () => {
     <div>
       <h1>Latest Blogs</h1>
       <div>
-        <button onClick= {() => window.location.href = "/signup"}>Sign up</button>
+        <button onClick= {() => navigate("/signup")}>Sign up</button>
         <button onClick= {() => window.location.href = "/login"}>Login</button>
 
       </div>
