@@ -4,6 +4,7 @@ import LandingPage from "./components/LandingPage";
 import BlogDetail from "./components/BlogDetail";
 import SignupForm from "./components/SignupForm";
 import LoginForm from "./components/LoginForm";
+import UserHome from "./components/UserHome";
 
 const App = () => {
     return (
@@ -13,6 +14,7 @@ const App = () => {
                 <Route path="/blogs/:id" element={<BlogDetail />} />
                 <Route path="/signup" element={<SignupForm />} />
                 <Route path="/login" element={<LoginForm />} />
+                <Route path="/blogs/prefered_blogs" element={<UserHome />} />
             </Routes>
         </Router>
     );

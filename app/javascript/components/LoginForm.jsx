@@ -1,4 +1,5 @@
 import React, { useState} from "react";
+import { useNavigate } from "react-router-dom";
 
 const LoginForm = () => {
     const [email, setEmail] = useState("");
@@ -6,8 +7,12 @@ const LoginForm = () => {
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
 
+    const navigate = useNavigate();
+
     const handleLogin = async (e) => {
         e.preventDefault();
+
+
 
         try{
             const response = await fetch("/api/login", {
@@ -24,8 +29,9 @@ const LoginForm = () => {
             }
 
             sessionStorage.setItem("token", data.token);
-            setSuccess("Login successful!");
-            setError("");
+            navigate("/blogs/prefered_blogs");
+            //setSuccess("Login successful!");
+            //setError("");
 
 
         }catch(err){

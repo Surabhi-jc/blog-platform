@@ -84,6 +84,14 @@ class BlogsController < ApplicationController
         render json: {blogs: blogs}, status: :ok
     end
 
+    def is_liked
+        blog = Blog.find_by(id: params[:id])
+        return render json: { liked: false }, status: :not_found unless blog
+
+        liked = Like.exists?(user_id: @current_user.id, blog_id: blog.id)
+
+        render json: { liked: liked }
+    end
 
 
     private

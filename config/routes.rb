@@ -20,10 +20,16 @@ Rails.application.routes.draw do
   patch "/blog/:id", to: "blogs#update"
   delete "/blog/:id", to: "blogs#destroy"
   get "/api/blog/show", to: "blogs#show"
-  get "/blog/show_blog", to: "blogs#prefered_blogs"
+  get "/api/blog/prefered_blogs", to: "blogs#prefered_blogs"
   get "/api/blog/:id", to: "blogs#show_blog"
+  get "/api/blog/:id/is_liked", to: "blogs#is_liked"
 
-  resources :likes, only: [:create]
+  # resources :likes, only: [:create]
+  post "/api/likes", to: "likes#create"
+  delete "/api/likes", to: "likes#destroy"
+
+
+
 
   # Defines the root path route ("/")
   root to: "home#index"
