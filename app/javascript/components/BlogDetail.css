@@ -29,3 +29,17 @@
     margin-top: 20px;
     line-height: 1.6;
 }
+
+.login-tooltip {
+    color: #d9534f;
+    font-size: 14px;
+    margin-top: 6px;
+    animation: fadeInOut 3s ease-out;
+}
+
+@keyframes fadeInOut {
+    0% { opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { opacity: 0; }
+}

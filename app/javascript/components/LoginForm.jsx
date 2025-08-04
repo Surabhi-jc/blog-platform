@@ -29,9 +29,18 @@ const LoginForm = () => {
             }
 
             sessionStorage.setItem("token", data.token);
-            navigate("/blogs/prefered_blogs");
-            //setSuccess("Login successful!");
-            //setError("");
+
+            const redirectPath= sessionStorage.getItem("redirectAfterLogin");
+            if(redirectPath){
+                sessionStorage.removeItem("redirectAfterLogin");
+                navigate(redirectPath);
+            }
+            else{
+                navigate("/blogs/prefered_blogs");
+                //setSuccess("Login successful!");
+                //setError("");
+            }
+
 
 
         }catch(err){

@@ -9,6 +9,7 @@ const BlogDetail = () => {
     const [loading, setLoading] = useState(true);
     const [liked, setLiked] = useState(false);
     const token = sessionStorage.getItem("token");
+    const [message, setMessage] = useState("");
 
 
     useEffect(() => {
@@ -44,6 +45,19 @@ const BlogDetail = () => {
     }, [id, token]);
 
     const handleLike = () => {
+
+        if(!token){
+            setMessage("Login to like this blog");
+            // clear message after 3 seconds
+
+            sessionStorage.setItem("redirectAfterLogin", `/blogs/${id}`);
+            setTimeout(() => {
+                navigate("/login");
+            }, 1000); // gives time for message to appear
+
+            return;
+        }
+
         fetch("/api/likes", {
             method: "POST",
             headers: {
@@ -97,6 +111,7 @@ const BlogDetail = () => {
                 <button onClick={liked ? handleUnlike : handleLike}>
                     {liked ? "Unlike" : "Like"}
                 </button>
+                {message && <p className="login-tooltip">{message}</p>}
             </div>
         </div>
     );
