@@ -1,5 +1,6 @@
 import React, { useState} from "react";
 import { useNavigate } from "react-router-dom";
+import "./LoginForm.css";
 
 const LoginForm = () => {
     const [email, setEmail] = useState("");
@@ -50,35 +51,42 @@ const LoginForm = () => {
     };
 
     return (
-        <div className="login-form">
-            <h2>Login</h2>
-            {error && <p style={{ color: "red" }}>{error}</p>}
-            {success && <p style={{ color: "green" }}>{success}</p>}
+        <div className="modal-overlay">
+            <div className= "modal-box">
+                <button className= "close-btn" onClick={() => navigate("/")}>x</button>
 
-            <form onSubmit={handleLogin}>
-                <div>
-                    <label>Email:</label>
+                <h2>Login</h2>
+                {error && <p style={{ color: "red" }}>{error}</p>}
+                {success && <p style={{ color: "green" }}>{success}</p>}
+
+                <form onSubmit={handleLogin} className="auth-form">
                     <input
                         type="email"
+                        placeholder="Email"
                         value={email}
                         required
                         onChange={(e) => setEmail(e.target.value)}
                     />
-                </div>
 
-                <div>
-                    <label>Password:</label>
                     <input
                         type="password"
+                        placeholder="Password"
                         value={password}
                         required
                         onChange={(e) => setPassword(e.target.value)}
                     />
-                </div>
 
-                <button type="submit">Login</button>
-            </form>
+                    <button type="submit">Login</button>
+
+                </form>
+                <p>
+                    New here? <span className="link" onClick={() => navigate("/signup")}>Sign up </span>
+                </p>
+            </div>
         </div>
+
+
+
     );
 };
 

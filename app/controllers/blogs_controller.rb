@@ -75,13 +75,23 @@ class BlogsController < ApplicationController
     def prefered_blogs
         p_tags= UserTag.where(user_id: @current_user.id).pluck(:tag_id)    #pluck-only tagid column from row
 
-        p_blogs= Blog.joins(:tags).where(tags: {id: p_tags}).distinct
+        p_blogs= Blog.includes(:user, :tags).joins(:tags).where(tags: {id: p_tags}).distinct
 
-        other_blogs= Blog.where.not(id: p_blogs.pluck(:id))
+        other_blogs= Blog.includes(:user, :tags).where.not(id: p_blogs.pluck(:id))
 
         blogs= p_blogs + other_blogs
 
-        render json: {blogs: blogs}, status: :ok
+        formatted_blogs = blogs.map do |blog|
+            {
+              id: blog.id,
+              title: blog.title,
+              content: blog.content,
+              author_name: blog.user.name,               # blog belongs_to :user
+              tags: blog.tags.map(&:name)                # blog has_many :tags
+            }
+        end
+
+        render json: { blogs: formatted_blogs }, status: :ok
     end
 
     def is_liked

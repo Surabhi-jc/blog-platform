@@ -6,11 +6,13 @@ const PreferredBlogs = () => {
     const [blogs, setBlogs] = useState([]);
     const [error, setError] = useState("");
 
+    const token = sessionStorage.getItem("token");
+
 
     useEffect(() => {
         const fetchPreferredBlogs = async () => {
             try{
-                const token = sessionStorage.getItem("token");
+                //const token = sessionStorage.getItem("token");
 
                 const response= await fetch("/api/blog/prefered_blogs", {
                     headers: {

@@ -1,4 +1,6 @@
 import React, {useState} from "react";
+import "./LoginForm.css";
+import {useNavigate} from "react-router-dom";
 
 const SignupForm = () => {
     const [email, setEmail] = useState("");
@@ -6,6 +8,8 @@ const SignupForm = () => {
     const [error, setError] = useState("");
     const [name, setName] = useState("");
     const [passwordConfirmation, setPasswordConfirmation] = useState("");
+
+    const navigate = useNavigate();
 
     const handleSignup = async(e) => {
         e.preventDefault();
@@ -36,6 +40,15 @@ const SignupForm = () => {
 
 
             sessionStorage.setItem("token", data.token);
+            const redirectPath= sessionStorage.getItem("redirectAfterLogin");
+            if(redirectPath){
+                sessionStorage.removeItem("redirectAfterLogin");
+                navigate(redirectPath);
+            }
+            else{
+                navigate("/blogs/prefered_blogs");
+
+            }
 
             console.log("signup successful", data);
         } catch(err){
@@ -45,50 +58,54 @@ const SignupForm = () => {
     };
 
     return (
-        <div className="signup-form">
-            <h2>Sign Up</h2>
-            {error && <p style={{ color: "red" }}>{error}</p>}
-            <form onSubmit={handleSignup}>
-                <div>
-                    <label>Name:</label>
+        <div className="modal-overlay">
+            <div className="modal-box">
+                <button className="close-btn" onClick={() => navigate("/")}>×</button>
+                <h2>Sign Up</h2>
+
+                {error && <p className="error-text">{error}</p>}
+
+                <form onSubmit={handleSignup} className="auth-form">
                     <input
-                        type="name"
+                        type="text"
+                        placeholder="Name"
                         value={name}
                         required
                         onChange={(e) => setName(e.target.value)}
                     />
-                </div>
-                <div>
-                    <label>Email:</label>
+
                     <input
                         type="email"
+                        placeholder="Email"
                         value={email}
                         required
                         onChange={(e) => setEmail(e.target.value)}
                     />
-                </div>
 
-                <div>
-                    <label>Password:</label>
                     <input
                         type="password"
+                        placeholder="Password"
                         value={password}
                         required
                         onChange={(e) => setPassword(e.target.value)}
                     />
-                </div>
-                <div>
-                    <label>Confirm Password:</label>
+
                     <input
                         type="password"
+                        placeholder="Confirm Password"
                         value={passwordConfirmation}
                         required
                         onChange={(e) => setPasswordConfirmation(e.target.value)}
                     />
-                </div>
 
-                <button type="submit">Sign Up</button>
-            </form>
+                    <button type="submit">Sign Up</button>
+                </form>
+
+                <p>
+                    Already have an account?{" "}
+                    <span className="link" onClick={() => navigate("/login")}>Login</span>
+                </p>
+            </div>
         </div>
     );
 

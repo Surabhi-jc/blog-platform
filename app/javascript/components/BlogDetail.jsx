@@ -10,6 +10,7 @@ const BlogDetail = () => {
     const [liked, setLiked] = useState(false);
     const token = sessionStorage.getItem("token");
     const [message, setMessage] = useState("");
+    const [showAuthModal, setShowAuthModal] = useState(false);
 
 
     useEffect(() => {
@@ -48,12 +49,13 @@ const BlogDetail = () => {
 
         if(!token){
             setMessage("Login to like this blog");
-            // clear message after 3 seconds
+
 
             sessionStorage.setItem("redirectAfterLogin", `/blogs/${id}`);
-            setTimeout(() => {
+            /* setTimeout(() => {
                 navigate("/login");
-            }, 1000); // gives time for message to appear
+            }, 1000);  */ // gives time for message to appear
+            setShowAuthModal(true);
 
             return;
         }
@@ -100,7 +102,13 @@ const BlogDetail = () => {
 
     return (
         <div className="blog-detail-container">
-            <button onClick={() => navigate("/")}>← Back</button>
+            <button onClick={() => {
+                if(token) {
+                    navigate("/blogs/prefered_blogs");
+                } else {
+                    navigate("/");
+                }
+            }}>← Back</button>
             <h1>{blog.title}</h1>
             <p><strong>Author:</strong> {blog.author_name}</p>
             <p><strong>Tags:</strong> {blog.tags.join(", ")}</p>
@@ -113,6 +121,20 @@ const BlogDetail = () => {
                 </button>
                 {message && <p className="login-tooltip">{message}</p>}
             </div>
+
+            {/* Modal */}
+            { showAuthModal && (
+                <div className="modal-overlay">
+                    <div className="modal-box">
+                        <button className="close-btn" onClick={() => setShowAuthModal(false)}>×</button>
+                        <h2>Welcome!</h2>
+                        <p>Please choose an option to continue</p>
+                        <button onClick={()=> navigate("/login")}>Login</button>
+                        <button onClick={() => navigate("/signup")}>Sign Up</button>
+
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
