@@ -37,9 +37,14 @@ const PreferredBlogs = () => {
 
     const navigate = useNavigate();
 
+    const handleCreateBlog = () => {
+        navigate('/Blog');
+    }
+
     return (
         <div>
             <h1>Recommended for you</h1>
+            <button onClick={handleCreateBlog} className= "create-blog" >Create Blog</button>
 
 
 
@@ -59,6 +64,8 @@ const PreferredBlogs = () => {
                     ))}
                 </div>
             )}
+
+
         </div>
 
     );

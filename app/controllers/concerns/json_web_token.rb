@@ -13,8 +13,9 @@ module JsonWebToken
     def self.decode(token)
         decoded = JWT.decode(token, SECRET_KEY)[0]  #gets payload from array
         HashWithIndifferentAccess.new(decoded)  #Wraps the payload hash in a special Rails hash that allows both symbol and string access.
-        rescue JWT::DecodeError
-            nil
+    rescue JWT::DecodeError => e
+        puts "JWT Decode Error: #{e.message}"
+        nil
         end
     end
 
