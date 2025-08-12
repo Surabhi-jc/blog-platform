@@ -28,6 +28,7 @@ Rails.application.routes.draw do
   post "/api/likes", to: "likes#create"
   delete "/api/likes", to: "likes#destroy"
 
+  get "/api/tags", to: "tags#show_tags"
 
 
 

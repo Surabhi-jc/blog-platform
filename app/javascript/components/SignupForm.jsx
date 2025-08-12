@@ -29,8 +29,8 @@ const SignupForm = () => {
             });
 
             const data= await response.json();
-            console.log("status:", response.status)
-            console.log("response status:", data)
+            //console.log("status:", response.status)
+            //console.log("response status:", data)
             if(!response.ok){
 
                 throw new Error(data.error || "signup failed");

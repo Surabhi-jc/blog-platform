@@ -2,10 +2,19 @@ class LikesController < ApplicationController
     before_action :authorize_request
 
     def create
-        blog= Blog.find_by(id: params[:blog_id])
-        return render json: {error: "Blog not found"}, status: :not_found unless blog
 
-        #entry into Like table
+        response_data = {}
+        status_code = nil
+
+        blog= Blog.find_by(id: params[:blog_id])
+
+        if blog.nil?
+            response_data= { error: "Blog not found"}
+            status_code= :not_found
+
+        else
+
+            #entry into Like table
         like= Like.new(user_id: current_user.id, blog_id: blog.id)
 
         if like.save
@@ -15,21 +24,44 @@ class LikesController < ApplicationController
                 UserTag.find_or_create_by(user_id: current_user.id, tag_id: tag.id)
             end
 
-            render json: {message: "Blog liked and tag preference updated"}, status: :created
+            response_data= {message: "Blog liked and tag preference updated"}
+            status_code = :created
+          else
+            response_data = { errors: like.errors.full_messages }
+            status_code = :unprocessable_entity
+          end
+        end
+        render json: response_data, status: status_code
+    end
+
+
+
+
+
+    def destroy
+
+        response_data = {}
+        status_code = nil
+
+        blog= Blog.find_by(id: params[:blog_id])
+
+        if blog.nil?
+            response_data = { error: "Blog not found" }
+            status_code = :not_found
         else
-            render json: {errors: like.errors.full_messages}, status: :unprocessable_entity
+
+        like= Like.find_by(user_id: current_user.id, blog_id: blog.id)
+        if like.nil?
+            response_data = { error: "Like not found" }
+            status_code = :not_found
+        else
+            like.destroy
+            response_data = { message: "Blog unliked and tag preference updated" }
+            status_code = :ok
         end
     end
 
-    def destroy
-        blog= Blog.find_by(id: params[:blog_id])
-        return render json: {error: "Blog not found"}, status: :not_found unless blog
-
-        like= Like.find_by(user_id: current_user.id, blog_id: blog.id)
-        return render json: {error: "Like not found"}, status: :not_found unless like
-
-        like.destroy
-        render json: { message: "Blog unliked and tag preference updated" }, status: :ok
+        render json: response_data, status: status_code
     end
-    
+
 end
