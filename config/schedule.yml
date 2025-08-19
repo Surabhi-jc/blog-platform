@@ -1,0 +1,5 @@
+update_likes_count:
+  cron: "*/5 * * * *" # every 5 minutes
+  class: "UpdateLikesCountWorker"
+  queue: default
+  description: "Recalculate likes_count for all blogs every 5 minutes"

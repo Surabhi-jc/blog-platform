@@ -28,13 +28,13 @@ const CreateBlogPage = () => {
         setDropdownOpen(!dropdownOpen);
     };
 
-    const handleTagClick = (tagName) => {
-        if (!selectedTags.includes(tagName)) {
-            setSelectedTags([...selectedTags, tagName]);
+    const handleTagClick = (tagId) => {
+        if (!selectedTags.includes(tagId)) {
+            setSelectedTags([...selectedTags, tagId]);
         }
     };
-    const removeTag = (tagName) => {
-        setSelectedTags(selectedTags.filter((t) => t !== tagName));
+    const removeTag = (tagId) => {
+        setSelectedTags(selectedTags.filter((t) => t !== tagId));
     };
 
 
@@ -43,9 +43,11 @@ const CreateBlogPage = () => {
         e.preventDefault();
 
         const blogData = {
-            title,
-            content,
-            tags: selectedTags,
+            blog: {
+                title,
+                content,
+                tag_ids: selectedTags
+            }
         };
 
         try{
@@ -59,7 +61,7 @@ const CreateBlogPage = () => {
             });
 
             if(response.ok) {
-                navigate('/');
+                navigate('/blogs/prefered_blogs');
             } else {
                 const errorData = await response.json();
                 setError(errorData.message||'Failed to create blog');
@@ -98,14 +100,23 @@ const CreateBlogPage = () => {
                 <label>Select Tags:</label>
                 <div className="tag-selector">
                     <div className="selected-tags-box">
-                        {selectedTags.map((tag) => (
+                        {/*} {selectedTags.map((tagId) => (
                             <div key={tag} className="tag-item">
                                 {tag}
                                 <span className="remove-tag" onClick={() => removeTag(tag)}>
                   ×
                 </span>
                             </div>
-                        ))}
+                        ))} */}
+                        {selectedTags.map((tagId) => {
+                                  const tag = availableTags.find(t => t.id === tagId);
+                                  return (
+                                          <div key={tagId} className="tag-item">
+                                                   {tag ? tag.name : tagId}
+                                                   <span className="remove-tag" onClick={() => removeTag(tagId)}>×</span>
+                                               </div>
+                                       );
+                               })}
                     </div>
                     <button
                         type="button"
@@ -122,9 +133,9 @@ const CreateBlogPage = () => {
                             <div
                                 key={tag.id}
                                 className={`dropdown-item ${
-                                    selectedTags.includes(tag.name) ? "selected" : ""
+                                    selectedTags.includes(tag.id) ? "selected" : ""
                                 }`}
-                                onClick={() => handleTagClick(tag.name)}
+                                onClick={() => handleTagClick(tag.id)}
                             >
                                 {tag.name}
                             </div>

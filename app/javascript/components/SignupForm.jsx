@@ -33,7 +33,10 @@ const SignupForm = () => {
             //console.log("response status:", data)
             if(!response.ok){
 
-                throw new Error(data.error || "signup failed");
+                let errorMessage = "Signup failed";
+                if (data.error) errorMessage = data.error;
+                else if (data.errors) errorMessage = data.errors[0]; // just show the first
+                throw new Error(errorMessage);
 
             }
 

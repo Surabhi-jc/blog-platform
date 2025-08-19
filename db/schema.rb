@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_07_18_092007) do
+ActiveRecord::Schema[8.0].define(version: 2025_08_18_182824) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -29,7 +29,21 @@ ActiveRecord::Schema[8.0].define(version: 2025_07_18_092007) do
     t.bigint "user_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "likes_count", default: 0, null: false
+    t.index ["likes_count"], name: "index_blogs_on_likes_count"
     t.index ["user_id"], name: "index_blogs_on_user_id"
+  end
+
+  create_table "comments", force: :cascade do |t|
+    t.text "content", null: false
+    t.boolean "is_deleted", default: false, null: false
+    t.bigint "user_id", null: false
+    t.bigint "blog_id", null: false
+    t.bigint "parent_comment_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["blog_id"], name: "index_comments_on_blog_id"
+    t.index ["user_id"], name: "index_comments_on_user_id"
   end
 
   create_table "likes", force: :cascade do |t|
@@ -69,6 +83,9 @@ ActiveRecord::Schema[8.0].define(version: 2025_07_18_092007) do
   add_foreign_key "blog_tags", "blogs"
   add_foreign_key "blog_tags", "tags"
   add_foreign_key "blogs", "users"
+  add_foreign_key "comments", "blogs"
+  add_foreign_key "comments", "comments", column: "parent_comment_id"
+  add_foreign_key "comments", "users"
   add_foreign_key "likes", "blogs"
   add_foreign_key "likes", "users"
   add_foreign_key "user_tags", "tags"

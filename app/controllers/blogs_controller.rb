@@ -21,7 +21,7 @@ class BlogsController < ApplicationController
     end
 
     def show
-        blogs=Blog.includes(:user, :tags).all
+        blogs=Blog.includes(:user, :tags).order(created_at: :desc)
         render json: blogs.map {|blog|
             {
               id: blog.id,
@@ -29,6 +29,7 @@ class BlogsController < ApplicationController
               content: blog.content,
               author_name: blog.user.name,
               tags: blog.tags.map(&:name),
+              likes_count: blog.likes_count,
               created_at: blog.created_at
             }
         }, status: :ok
@@ -44,6 +45,7 @@ class BlogsController < ApplicationController
               content: blog.content,
               author_name: blog.user.name,
               tags: blog.tags.map(&:name),
+              likes_count: blog.likes_count,
               created_at: blog.created_at
             }, status: :ok
         else
