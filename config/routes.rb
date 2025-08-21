@@ -30,6 +30,7 @@ Rails.application.routes.draw do
 
   get "/api/tags", to: "tags#show_tags"
 
+  post "/blog/:id/comment", to: "comments#create"
 
 
   # Defines the root path route ("/")

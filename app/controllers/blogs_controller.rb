@@ -36,7 +36,7 @@ class BlogsController < ApplicationController
     end
 
     def show_blog
-        blog=Blog.includes(:user, :tags).find_by(id: params[:id])
+        blog=Blog.includes(:user, :tags, comments: :user).find_by(id: params[:id])
         if blog
         render json: {
 
@@ -46,7 +46,15 @@ class BlogsController < ApplicationController
               author_name: blog.user.name,
               tags: blog.tags.map(&:name),
               likes_count: blog.likes_count,
-              created_at: blog.created_at
+              created_at: blog.created_at,
+              comments: blog.comments.map do |c|
+                {
+                  id: c.id,
+                  content: c.is_deleted ? "Comment deleted" : c.content,
+                  user_name: c.user&.name,
+                  created_at: c.created_at
+                }
+              end
             }, status: :ok
         else
             render json: {error: "Blog not found"}, status: :not_found

@@ -4,5 +4,6 @@ class Blog < ApplicationRecord
   has_many :tags, through: :blog_tags
   has_many :likes
   has_many :liked_by_users, through: :likes, source: :user
+  has_many :comments
   
 end

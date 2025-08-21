@@ -11,6 +11,8 @@ const BlogDetail = () => {
     const token = sessionStorage.getItem("token");
     const [message, setMessage] = useState("");
     const [showAuthModal, setShowAuthModal] = useState(false);
+    const [newComment, setNewComment] = useState("");
+    const [commentMessage, setCommentMessage] = useState("");
 
 
     useEffect(() => {
@@ -97,6 +99,43 @@ const BlogDetail = () => {
             });
     };
 
+    const handleAddComment = (e) => {
+        e.preventDefault();
+        if (!token) {
+            setCommentMessage("Please login to add a comment.");
+            setShowAuthModal(true);
+            return;
+        }
+
+        fetch(`/blog/${id}/comment`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({ content: newComment })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.errors) {
+                    setCommentMessage(data.errors.join(", "));
+                } else {
+                    // update comments locally so we don’t need to refetch blog
+                    setBlog(prev => ({
+                        ...prev,
+                        comments: [...prev.comments, data]
+                    }));
+                    setNewComment("");
+                    setCommentMessage("Comment added!");
+                }
+            })
+            .catch(error => {
+                console.error("Error adding comment:", error);
+                setCommentMessage("Something went wrong.");
+            });
+    };
+
+
     if (loading) return <p>Loading blog...</p>;
     if (!blog) return <p>Blog not found.</p>;
 
@@ -114,6 +153,31 @@ const BlogDetail = () => {
             <p><strong>Tags:</strong> {blog.tags.join(", ")}</p>
             <hr />
             <p className="blog-content">{blog.content}</p>
+
+            <h3>Add a Comment</h3>
+            <form onSubmit={handleAddComment}>
+                <textarea
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    placeholder="Write your comment..."
+                    required
+                />
+                <button type="submit">Post Comment</button>
+            </form>
+            {commentMessage && <p className="comment-message">{commentMessage}</p>}
+
+            <hr />
+            <h3>Comments</h3>
+            {blog.comments && blog.comments.length > 0 ? (
+                blog.comments.map(comment => (
+                    <div key={comment.id} className="comment">
+                        <p><strong>{comment.user_name || "Unknown User"}:</strong> {comment.content}</p>
+                        <small>{new Date(comment.created_at).toLocaleString()}</small>
+                    </div>
+                ))
+            ) : (
+                <p>No comments yet.</p>
+            )}
 
             <div className="like-button-container">
                 <button onClick={liked ? handleUnlike : handleLike}>
