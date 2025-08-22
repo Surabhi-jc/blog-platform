@@ -13,6 +13,8 @@ const BlogDetail = () => {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [newComment, setNewComment] = useState("");
     const [commentMessage, setCommentMessage] = useState("");
+    const [replyingTo, setReplyingTo] = useState(null);
+    const [replyContent, setReplyContent] = useState("");
 
 
     useEffect(() => {
@@ -99,7 +101,7 @@ const BlogDetail = () => {
             });
     };
 
-    const handleAddComment = (e) => {
+    const handleAddComment = (e, parentId = null, content) => {
         e.preventDefault();
         if (!token) {
             setCommentMessage("Please login to add a comment.");
@@ -107,13 +109,16 @@ const BlogDetail = () => {
             return;
         }
 
+       // const content = parentId ? replyContent : newComment;
+
+
         fetch(`/blog/${id}/comment`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${token}`
             },
-            body: JSON.stringify({ content: newComment })
+            body: JSON.stringify({ content, parent_comment_id: parentId })
         })
             .then(res => res.json())
             .then(data => {
@@ -121,12 +126,41 @@ const BlogDetail = () => {
                     setCommentMessage(data.errors.join(", "));
                 } else {
                     // update comments locally so we don’t need to refetch blog
-                    setBlog(prev => ({
-                        ...prev,
-                        comments: [...prev.comments, data]
-                    }));
-                    setNewComment("");
-                    setCommentMessage("Comment added!");
+                    setBlog(prev => {
+                        const addReplyRecursively = (comments, parentId, reply) => {
+                            return comments.map(c => {
+                                if (c.id === parentId) {
+                                    return {
+                                        ...c,
+                                        replies: [...(c.replies || []), reply]
+                                    };
+                                } else if (c.replies) {
+                                    return {
+                                        ...c,
+                                        replies: addReplyRecursively(c.replies, parentId, reply)
+                                    };
+                                }
+                                return c;
+                            });
+                        };
+                        if(!parentId) {
+                            //top comment
+                            return {
+                                ...prev,
+                                comments: [...prev.comments, data]
+                            };
+                    } else {
+                            return {
+                                ...prev,
+                                comments: addReplyRecursively(prev.comments, parentId, data)
+                            };
+                    }
+
+                    });
+
+                        setNewComment("");
+                        setCommentMessage("Comment added!");
+
                 }
             })
             .catch(error => {
@@ -153,9 +187,24 @@ const BlogDetail = () => {
             <p><strong>Tags:</strong> {blog.tags.join(", ")}</p>
             <hr />
             <p className="blog-content">{blog.content}</p>
+            <hr />
 
-            <h3>Add a Comment</h3>
-            <form onSubmit={handleAddComment}>
+            <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+                <span role="img" style={{ fontSize: "22px", cursor: "pointer" }}>💬</span>
+                <span
+                    style={{
+                        fontSize: "22px",
+                        cursor: "pointer",
+                        color: liked ? "red" : "black"
+                    }}
+                    onClick={liked ? handleUnlike : handleLike}
+                >
+                 {liked ? "♥" : "♡"}
+                </span>
+            </div>
+
+
+            <form onSubmit= {(e) => handleAddComment(e, null, newComment)}>
                 <textarea
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
@@ -170,21 +219,19 @@ const BlogDetail = () => {
             <h3>Comments</h3>
             {blog.comments && blog.comments.length > 0 ? (
                 blog.comments.map(comment => (
-                    <div key={comment.id} className="comment">
-                        <p><strong>{comment.user_name || "Unknown User"}:</strong> {comment.content}</p>
-                        <small>{new Date(comment.created_at).toLocaleString()}</small>
-                    </div>
+                    <Comment
+                        key={comment.id}
+                        comment={comment}
+                        handleAddComment={handleAddComment}
+                        token={token}
+                        setShowAuthModal={setShowAuthModal}
+                        setCommentMessage={setCommentMessage}
+                    />
                 ))
             ) : (
                 <p>No comments yet.</p>
             )}
 
-            <div className="like-button-container">
-                <button onClick={liked ? handleUnlike : handleLike}>
-                    {liked ? "Unlike" : "Like"}
-                </button>
-                {message && <p className="login-tooltip">{message}</p>}
-            </div>
 
             {/* Modal */}
             { showAuthModal && (
@@ -199,6 +246,57 @@ const BlogDetail = () => {
                     </div>
                 </div>
             )}
+        </div>
+    );
+};
+
+const Comment = ({ comment, handleAddComment, token, setShowAuthModal, setCommentMessage }) => {
+    const [replying, setReplying] = useState(false);
+    const [replyContent, setReplyContent] = useState("");
+
+    const handleReply = (e) => {
+        handleAddComment(e, comment.id, replyContent);
+        setReplyContent("");
+        setReplying(false);
+    };
+
+    return (
+        <div className="comment">
+            <p><strong>{comment.user_name || "Unknown User"}:</strong> {comment.content}</p>
+            <button onClick={() => {
+                if (!token) {
+                    setCommentMessage("Please login to reply.");
+                    setShowAuthModal(true);
+                    return;
+                }
+                setReplying(!replying);
+            }}>
+                💬 Reply
+            </button>
+
+            {replying && (
+                <form onSubmit={handleReply}>
+                    <textarea
+                        value={replyContent}
+                        onChange={(e) => setReplyContent(e.target.value)}
+                        placeholder="Write a reply..."
+                        required
+                    />
+                    <button type="submit">Post Reply</button>
+                </form>
+            )}
+
+            {comment.replies && comment.replies.map(reply => (
+                <div key={reply.id} className="reply">
+                    <Comment
+                        comment={reply}
+                        handleAddComment={handleAddComment}
+                        token={token}
+                        setShowAuthModal={setShowAuthModal}
+                        setCommentMessage={setCommentMessage}
+                    />
+                </div>
+            ))}
         </div>
     );
 };

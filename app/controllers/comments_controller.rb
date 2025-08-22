@@ -15,6 +15,7 @@ class CommentsController < ApplicationController
         id: @comment.id,
         content: @comment.content,
         user_name: @comment.user.name,
+        parent_comment_id: @comment.parent_comment_id,
         created_at: @comment.created_at
       }, status: :created
     else

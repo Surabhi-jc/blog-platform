@@ -47,13 +47,8 @@ class BlogsController < ApplicationController
               tags: blog.tags.map(&:name),
               likes_count: blog.likes_count,
               created_at: blog.created_at,
-              comments: blog.comments.map do |c|
-                {
-                  id: c.id,
-                  content: c.is_deleted ? "Comment deleted" : c.content,
-                  user_name: c.user&.name,
-                  created_at: c.created_at
-                }
+              comments: blog.comments.where(parent_comment_id: nil).map do |comment|
+                serialize_comment(comment)
               end
             }, status: :ok
         else
@@ -125,6 +120,16 @@ class BlogsController < ApplicationController
     
     def blog_params
         params.require(:blog).permit(:title, :content, tag_ids: [])
+    end
+
+    def serialize_comment(comment)
+      {
+        id: comment.id,
+        content: comment.content,
+        user_name: comment.user.name,
+        created_at: comment.created_at,
+        replies: comment.replies.map { |reply| serialize_comment(reply) }
+      }
     end
 
 end
