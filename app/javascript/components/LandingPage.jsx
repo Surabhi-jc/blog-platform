@@ -1,10 +1,14 @@
 import React, {useEffect, useState} from "react";
 import "./LandingPage.css";
 import { useNavigate } from "react-router-dom";
+import Navbar from "./Navbar";
 
 
 const LandingPage = () => {
     const [blogs, setBlogs] = useState([]);
+    const [user, setUser] = useState(null);
+
+
 
 
     //fetch blogs
@@ -43,17 +47,6 @@ const LandingPage = () => {
 
 
         <div>
-            <header className="site-header">
-
-
-                <h1 className="logo" onClick={() => navigate("/")}>BlogPlatform</h1>
-                <nav className="nav-links">
-                    <button className="btn" onClick={() => navigate("/signup")}>Sign up</button>
-                    <button className="btn" onClick={() => navigate("/login")}>Login</button>
-                </nav>
-
-
-            </header>
 
 
 

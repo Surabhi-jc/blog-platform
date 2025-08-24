@@ -1,0 +1,42 @@
+.profile-page {
+    display: flex;
+    min-height: 80vh;
+    padding: 20px;
+    gap: 20px;
+}
+
+.profile-form {
+    flex: 1; /* 1 part = one-third */
+    max-width: 30%;
+    background: #f9f9f9;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.profile-form input {
+    width: 100%;
+    padding: 8px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+
+.profile-form button {
+    padding: 8px 14px;
+    background: #062898;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.profile-form button:hover {
+    background: #041f70;
+}
+
+.profile-extra {
+    flex: 2; /* 2 parts = two-thirds */
+    background: #fff;
+    padding: 20px;
+}

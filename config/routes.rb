@@ -15,6 +15,9 @@ Rails.application.routes.draw do
 
   #route for user signup
   post "/api/signup", to: "users#create"
+  get "/user/me", to: "users#me"
+  put "/user/update", to: "users#update"
+
   post "/api/login", to: "authentication#login"
   post "/api/blog", to: "blogs#create"
   patch "/blog/:id", to: "blogs#update"

@@ -2,7 +2,7 @@ import React, { useState} from "react";
 import { useNavigate } from "react-router-dom";
 import "./LoginForm.css";
 
-const LoginForm = () => {
+const LoginForm = ({ setUser }) => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
@@ -30,6 +30,7 @@ const LoginForm = () => {
             }
 
             sessionStorage.setItem("token", data.token);
+            setUser(data.user);
 
             const redirectPath= sessionStorage.getItem("redirectAfterLogin");
             if(redirectPath){

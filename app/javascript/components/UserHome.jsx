@@ -1,18 +1,31 @@
 import React, { useEffect, useState} from "react";
 import "./LandingPage.css";
+
+
+
 import { useNavigate } from "react-router-dom";
 
-const PreferredBlogs = () => {
+const PreferredBlogs = ({ user }) => {
     const [blogs, setBlogs] = useState([]);
     const [error, setError] = useState("");
+   // const [user, setUser] = useState(null);
 
     const token = sessionStorage.getItem("token");
+
+    {/*}  useEffect(() => {
+        fetch("/user/me", {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+            .then(res => res.json())
+            .then(data => setUser(data))
+            .catch(err => console.error("Failed to load user:", err));
+    }, []);  */}
 
 
     useEffect(() => {
         const fetchPreferredBlogs = async () => {
             try{
-                //const token = sessionStorage.getItem("token");
+
 
                 const response= await fetch("/api/blog/prefered_blogs", {
                     headers: {
@@ -25,15 +38,18 @@ const PreferredBlogs = () => {
                 }
 
                 const data= await response.json();
-                console.log("API response:", data);
                 setBlogs(data.blogs);
 
             }catch(err){
                 setError(err.message);
             }
         };
-        fetchPreferredBlogs();
-    }, []);
+
+        if(token) {
+            fetchPreferredBlogs();
+        }
+
+    }, [token]);
 
     const navigate = useNavigate();
 
@@ -41,8 +57,12 @@ const PreferredBlogs = () => {
         navigate('/Blog');
     }
 
+
+
     return (
         <div>
+
+            {user && <h1>Hello, {user.name}!</h1>}
             <h1>Recommended for you</h1>
             <button onClick={handleCreateBlog} className= "create-blog" >Create Blog</button>
 

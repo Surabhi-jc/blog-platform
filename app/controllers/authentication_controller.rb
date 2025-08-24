@@ -8,7 +8,9 @@ class AuthenticationController < ApplicationController
 
         if user&.authenticate(login_params[:password])
             token= JsonWebToken.encode({user_id: user.id})
-            render json: {token: token, message: "Login successful"}, status: :ok
+            render json: {token: token,
+                          user: { id: user.id, name: user.name, email: user.email },
+                          message: "Login successful"}, status: :ok
         else
             render json: {error: "Invalid email or password"}, status: :unauthorized
         end
