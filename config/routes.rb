@@ -20,12 +20,14 @@ Rails.application.routes.draw do
 
   post "/api/login", to: "authentication#login"
   post "/api/blog", to: "blogs#create"
-  patch "/blog/:id", to: "blogs#update"
+  put "/blog/:id", to: "blogs#update"
   delete "/blog/:id", to: "blogs#destroy"
   get "/api/blog/show", to: "blogs#show"
   get "/api/blog/prefered_blogs", to: "blogs#prefered_blogs"
   get "/api/blog/:id", to: "blogs#show_blog"
   get "/api/blog/:id/is_liked", to: "blogs#is_liked"
+  get "/user/my_blogs", to: "blogs#my_blogs"
+
 
   # resources :likes, only: [:create]
   post "/api/likes", to: "likes#create"

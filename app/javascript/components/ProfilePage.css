@@ -40,3 +40,27 @@
     background: #fff;
     padding: 20px;
 }
+.profile-sidebar {
+    width: 20%;
+    background: #f4f4f4;
+    padding: 20px;
+    border-right: 1px solid #ddd;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.profile-content {
+    flex: 1;
+    padding: 20px;
+}
+.edit-icon {
+    cursor: pointer;
+    font-size: 18px;
+    transition: color 0.2s ease;
+}
+
+.edit-icon:hover {
+    color: #007bff; /* blue on hover */
+}
+

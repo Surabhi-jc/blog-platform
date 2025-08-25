@@ -28,8 +28,8 @@ const Navbar = ({ user, onLogout }) => {
                         {dropdownOpen && (
                             <div className="dropdown">
                                 <p>{user.name}</p>
-                                <button onClick={() => navigate("/profile")}>My Profile</button>
-                                <button onClick={onLogout}>Logout</button>
+                                <button onClick={() => {navigate("/profile"); setDropdownOpen(false);}}>My Profile</button>
+                                <button onClick={ () => {onLogout(); setDropdownOpen(false);} }>Logout</button>
                             </div>
                         )}
                     </div>

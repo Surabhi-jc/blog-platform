@@ -45,6 +45,7 @@
     margin: 12px;
     box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
     background-color: #fff;
+    position: relative;
 }
 .blog-container {
     max-width: 800px;
@@ -72,4 +73,16 @@
 
 .likes-count {
     font-weight: bold;
+}
+.edit-icon {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 1rem;
+}
+.edit-icon:hover {
+    transform: scale(1.05);
 }

@@ -1,9 +1,10 @@
 import React, {useState, useEffect} from "react";
-import {useNavigate} from "react-router-dom";
+import {useNavigate, useParams} from "react-router-dom";
 import "./CreateBlogPage.css";
 
 const CreateBlogPage = () => {
     const navigate = useNavigate();
+    const { id } = useParams(); // blogId from route (null if creating)
 
     const [title, setTitle] = useState("");
     const [content, setContent] = useState("");
@@ -12,18 +13,40 @@ const CreateBlogPage = () => {
     const [availableTags, setAvailableTags] = useState([]);
     const [selectedTags, setSelectedTags] = useState([]);
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
+
 
 
     const token= sessionStorage.getItem('token');
 
 
-
+//load tags
     useEffect(() => {
         fetch("/api/tags")
             .then((res) => res.json())
             .then((data) => setAvailableTags(data.tags || []))
             .catch((err) => console.error("Failed to load tags", err));
     }, []);
+
+    //if editing, fetch blog details
+    useEffect(() => {
+        if (id) {
+            setLoading(true);
+            fetch(`/api/blog/${id}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            })
+                .then((res) => res.json())
+                .then((data) => {
+                    setTitle(data.title || "");
+                    setContent(data.content || "");
+                    setSelectedTags(data.tags ? data.tags.map((t) => t.id) : []);
+                })
+                .catch(() => setError("Failed to load blog data"))
+                .finally(() => setLoading(false));
+        }
+    }, [id, token]);
     const toggleDropdown = () => {
         setDropdownOpen(!dropdownOpen);
     };
@@ -51,8 +74,8 @@ const CreateBlogPage = () => {
         };
 
         try{
-            const response= await fetch('/api/blog',{
-                method: 'POST',
+            const response= await fetch(id ? `/blog/${id}` : '/api/blog',{
+                method: id ? 'PUT' : 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`,
@@ -61,7 +84,7 @@ const CreateBlogPage = () => {
             });
 
             if(response.ok) {
-                navigate('/blogs/prefered_blogs');
+                navigate('/profile');
             } else {
                 const errorData = await response.json();
                 setError(errorData.message||'Failed to create blog');
@@ -71,6 +94,8 @@ const CreateBlogPage = () => {
             setError('Error occurred while creating a blog');
         }
     }
+
+    if (loading) return <p>Loading blog data...</p>;
 
     return (
         <div className="create-blog-container">
@@ -143,7 +168,7 @@ const CreateBlogPage = () => {
                     </div>
                 )}
 
-                <button type="submit" className="publish-btn">Publish Blog</button>
+                <button type="submit" className="publish-btn">{id ? "Update Blog" : "Publish Blog"}</button>
 
 
             </form>

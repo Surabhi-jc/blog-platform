@@ -2,10 +2,10 @@ class BlogsController < ApplicationController
     protect_from_forgery with: :null_session
 
     before_action :authorize_request
-    before_action :find_blog    
+
 
     skip_before_action :authorize_request, only: [:show, :show_blog]
-    skip_before_action :find_blog, only: [:show, :create, :prefered_blogs]
+
 
 
     def create
@@ -56,18 +56,40 @@ class BlogsController < ApplicationController
         end
 
     end
+
+    def my_blogs
+      blogs = @current_user.blogs.includes(:tags).order(created_at: :desc)
+      render json: blogs.map { |blog|
+        {
+          id: blog.id,
+          title: blog.title,
+          content: blog.content,
+          author_name: blog.user.name,
+          tags: blog.tags.map(&:name),
+          likes_count: blog.likes_count,
+          created_at: blog.created_at
+        }
+      }, status: :ok
+    end
+
     def update
-        if @blog.user_id != current_user.id
+      blog = Blog.find_by(id: params[:id])
+      return render json: { error: "Blog not found" }, status: :not_found unless blog
+
+      if blog.user_id != current_user.id
             render json: {error: "Not authorized to update this blog"}, status: :unauthorized
-        elsif @blog.update(blog_params)
-        render json: {message: "Blog updation success", blog: @blog}, status: :ok
+        elsif blog.update(blog_params)
+        render json: {message: "Blog updation success", blog: blog}, status: :ok
         else
-            render json: {errors: @blog.errors.full_messages}, status: :unprocessable_entity
+            render json: {errors: blog.errors.full_messages}, status: :unprocessable_entity
         end
     end
 
     def destroy
-        if @blog.user_id != current_user.id
+      blog = Blog.find_by(id: params[:id])
+      return render json: { error: "Blog not found" }, status: :not_found unless blog
+
+      if @blog.user_id != current_user.id
             render json: {error: "You are not authorized to delete this blog"}, status: :unauthorized
         elsif @blog.destroy
                 render json: {message: "Blog deleted successfully"}, status: :ok
