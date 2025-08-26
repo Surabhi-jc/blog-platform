@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import LandingPage from "./components/LandingPage";
 import BlogDetail from "./components/BlogDetail";
 import SignupForm from "./components/SignupForm";
@@ -13,21 +14,25 @@ const App = () => {
 
     const [user, setUser] = useState(null);
     const token = sessionStorage.getItem("token");
+
     useEffect(() => {
 
-        if (token) {
+        if (!token) return;
+
+
             fetch("/user/me", {
                 headers: { Authorization: `Bearer ${token}` },
             })
                 .then((res) => res.ok && res.json())
                 .then((data) => setUser(data))
                 .catch(() => setUser(null));
-        }
-    }, []);
+
+    }, [token]);
 
     const handleLogout = () => {
         sessionStorage.removeItem("token");
         setUser(null);
+
     };
 
     return (

@@ -67,10 +67,7 @@ const ProfilePage = () => {
         }
     };
 
-    const handleLogout = () => {
-        sessionStorage.removeItem("token");
-        navigate("/");
-    };
+
 
     return (
         <div className="profile-page">
@@ -81,7 +78,7 @@ const ProfilePage = () => {
                 <button onClick={() => setActiveSection("following")}>
                     Following Authors
                 </button>
-                <button onClick={handleLogout}>Logout</button>
+
             </div>
 
             {/* Right Content Area */}

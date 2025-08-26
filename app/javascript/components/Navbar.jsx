@@ -5,7 +5,11 @@ import "./Navbar.css";
 const Navbar = ({ user, onLogout }) => {
     const navigate = useNavigate();
     const [dropdownOpen, setDropdownOpen] = useState(false);
-
+    const handleLogout = () => {
+        onLogout();
+        setDropdownOpen(false);
+        navigate("/");
+    };
     return (
         <header className="navbar">
             {/* Logo always visible */}
@@ -29,7 +33,7 @@ const Navbar = ({ user, onLogout }) => {
                             <div className="dropdown">
                                 <p>{user.name}</p>
                                 <button onClick={() => {navigate("/profile"); setDropdownOpen(false);}}>My Profile</button>
-                                <button onClick={ () => {onLogout(); setDropdownOpen(false);} }>Logout</button>
+                                <button onClick={ () => {handleLogout()} }>Logout</button>
                             </div>
                         )}
                     </div>

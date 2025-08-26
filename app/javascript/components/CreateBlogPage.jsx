@@ -99,7 +99,7 @@ const CreateBlogPage = () => {
 
     return (
         <div className="create-blog-container">
-            <h1>Create new blog</h1>
+            <h1>{id ? "Update Blog" : "Create New Blog"}</h1>
             {error && <p className="error-text">{error}</p>}
 
             <form onSubmit={handleSubmit}>
@@ -125,14 +125,7 @@ const CreateBlogPage = () => {
                 <label>Select Tags:</label>
                 <div className="tag-selector">
                     <div className="selected-tags-box">
-                        {/*} {selectedTags.map((tagId) => (
-                            <div key={tag} className="tag-item">
-                                {tag}
-                                <span className="remove-tag" onClick={() => removeTag(tag)}>
-                  ×
-                </span>
-                            </div>
-                        ))} */}
+
                         {selectedTags.map((tagId) => {
                                   const tag = availableTags.find(t => t.id === tagId);
                                   return (
