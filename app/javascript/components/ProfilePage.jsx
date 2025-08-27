@@ -113,7 +113,7 @@ const ProfilePage = () => {
                 {activeSection === "blogs" && (
                     <div>
                         <h2>Your Blogs</h2>
-                        <BlogFeed blogs={blogs} showEdit={true} />
+                        <BlogFeed blogs={blogs} showEdit={true} setBlogs={setBlogs} />
                     </div>
                 )}
 

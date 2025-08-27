@@ -8,13 +8,28 @@ const BlogDetail = () => {
     const [blog, setBlog] = useState(null);
     const [loading, setLoading] = useState(true);
     const [liked, setLiked] = useState(false);
-    const token = sessionStorage.getItem("token");
     const [message, setMessage] = useState("");
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [newComment, setNewComment] = useState("");
     const [commentMessage, setCommentMessage] = useState("");
     const [replyingTo, setReplyingTo] = useState(null);
     const [replyContent, setReplyContent] = useState("");
+    const [user, setUser] = useState(null);
+    const [comments, setComments] = useState([]);
+
+    const token = sessionStorage.getItem("token");
+
+    // Fetch current user
+    useEffect(() => {
+        if (!token) return;
+
+        fetch("/user/me", {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then(res => res.json())
+            .then(data => setUser(data))
+            .catch(err => console.error("Error fetching user:", err));
+    }, [token]);
 
 
     useEffect(() => {
@@ -22,6 +37,7 @@ const BlogDetail = () => {
             .then((res) => res.json())
             .then((data) => {
                 setBlog(data);
+                setComments(data.comments || []); // store comments separately
                 setLoading(false);
             })
             .catch((error) => {
@@ -102,15 +118,12 @@ const BlogDetail = () => {
     };
 
     const handleAddComment = (e, parentId = null, content) => {
-        e.preventDefault();
+        e && e.preventDefault();
         if (!token) {
             setCommentMessage("Please login to add a comment.");
             setShowAuthModal(true);
             return;
         }
-
-       // const content = parentId ? replyContent : newComment;
-
 
         fetch(`/blog/${id}/comment`, {
             method: "POST",
@@ -124,44 +137,29 @@ const BlogDetail = () => {
             .then(data => {
                 if (data.errors) {
                     setCommentMessage(data.errors.join(", "));
-                } else {
-                    // update comments locally so we don’t need to refetch blog
-                    setBlog(prev => {
-                        const addReplyRecursively = (comments, parentId, reply) => {
-                            return comments.map(c => {
-                                if (c.id === parentId) {
-                                    return {
-                                        ...c,
-                                        replies: [...(c.replies || []), reply]
-                                    };
-                                } else if (c.replies) {
-                                    return {
-                                        ...c,
-                                        replies: addReplyRecursively(c.replies, parentId, reply)
-                                    };
-                                }
-                                return c;
-                            });
-                        };
-                        if(!parentId) {
-                            //top comment
-                            return {
-                                ...prev,
-                                comments: [...prev.comments, data]
-                            };
-                    } else {
-                            return {
-                                ...prev,
-                                comments: addReplyRecursively(prev.comments, parentId, data)
-                            };
-                    }
-
-                    });
-
-                        setNewComment("");
-                        setCommentMessage("Comment added!");
-
+                    return;
                 }
+
+                // If top-level comment, append to comments
+                if (!parentId) {
+                    setComments(prev => [...(prev || []), data]);
+                } else {
+                    // Insert reply recursively
+                    const addReplyRecursively = (arr) =>
+                        arr.map(c => {
+                            if (c.id === parentId) {
+                                return { ...c, replies: [...(c.replies || []), data] };
+                            } else if (c.replies && c.replies.length) {
+                                return { ...c, replies: addReplyRecursively(c.replies) };
+                            }
+                            return c;
+                        });
+
+                    setComments(prev => addReplyRecursively(prev || []));
+                }
+
+                setNewComment("");
+                setCommentMessage("Comment added!");
             })
             .catch(error => {
                 console.error("Error adding comment:", error);
@@ -217,8 +215,8 @@ const BlogDetail = () => {
 
             <hr />
             <h3>Comments</h3>
-            {blog.comments && blog.comments.length > 0 ? (
-                blog.comments.map(comment => (
+            {comments && comments.length > 0 ? (
+                comments.map(comment => (
                     <Comment
                         key={comment.id}
                         comment={comment}
@@ -226,11 +224,14 @@ const BlogDetail = () => {
                         token={token}
                         setShowAuthModal={setShowAuthModal}
                         setCommentMessage={setCommentMessage}
+                        currentUserId={user?.id}
+                        setComments={setComments}    // pass setter down
                     />
                 ))
             ) : (
                 <p>No comments yet.</p>
             )}
+
 
 
             {/* Modal */}
@@ -250,7 +251,7 @@ const BlogDetail = () => {
     );
 };
 
-const Comment = ({ comment, handleAddComment, token, setShowAuthModal, setCommentMessage }) => {
+const Comment = ({ comment, handleAddComment, token, setShowAuthModal, setCommentMessage, currentUserId, setComments  }) => {
     const [replying, setReplying] = useState(false);
     const [replyContent, setReplyContent] = useState("");
 
@@ -260,9 +261,47 @@ const Comment = ({ comment, handleAddComment, token, setShowAuthModal, setCommen
         setReplying(false);
     };
 
+    // recursive helper to mark deleted in nested arrays
+    const markDeletedRecursively = (arr, commentId) =>
+        (arr || []).map(c => {
+            if (c.id === commentId) return { ...c, deleted_at: new Date().toISOString(), content: null };
+            return { ...c, replies: c.replies ? markDeletedRecursively(c.replies, commentId) : [] };
+        });
+
+    const handleDelete = async (e, commentId) => {
+        e.stopPropagation();
+
+        const confirmDelete = window.confirm("Are you sure you want to delete this comment?");
+        if (!confirmDelete) return;
+
+        try {
+            const res = await fetch(`/api/blog/${comment.blog_id}/comments/${commentId}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (res.ok) {
+                setComments(prev => markDeletedRecursively(prev, commentId));
+            } else {
+                const data = await res.json();
+                setCommentMessage(data.errors?.join(", ") || "Failed to delete comment.");
+            }
+        } catch (err) {
+            console.error("Error deleting comment:", err);
+            setCommentMessage("Something went wrong.");
+        }
+    };
+
     return (
         <div className="comment">
-            <p><strong>{comment.user_name || "Unknown User"}:</strong> {comment.content}</p>
+            <p><strong>{comment.user_name || "Unknown User"}:</strong> {" "}
+                {comment.deleted_at ? (
+                    <em>This comment was deleted by the author</em>
+                ) : (
+                    comment.content
+                )} </p>
+
+            { !comment.deleted_at && (
             <button onClick={() => {
                 if (!token) {
                     setCommentMessage("Please login to reply.");
@@ -273,6 +312,18 @@ const Comment = ({ comment, handleAddComment, token, setShowAuthModal, setCommen
             }}>
                 💬 Reply
             </button>
+            )}
+
+            {/* Delete button (only for own comment) */}
+            {comment.user_id === currentUserId && !comment.deleted_at && (
+                <button
+                    className="delete-icon"
+                    onClick={(e) => handleDelete(e, comment.id)}
+                    title="Delete comment"
+                >
+                    🗑️
+                </button>
+            )}
 
             {replying && (
                 <form onSubmit={handleReply}>
@@ -294,6 +345,8 @@ const Comment = ({ comment, handleAddComment, token, setShowAuthModal, setCommen
                         token={token}
                         setShowAuthModal={setShowAuthModal}
                         setCommentMessage={setCommentMessage}
+                        currentUserId={currentUserId}
+                        setComments={setComments}
                     />
                 </div>
             ))}

@@ -21,7 +21,7 @@ class BlogsController < ApplicationController
     end
 
     def show
-        blogs=Blog.includes(:user, :tags).order(created_at: :desc)
+        blogs=Blog.active.includes(:user, :tags).order(created_at: :desc)
         render json: blogs.map {|blog|
             {
               id: blog.id,
@@ -36,7 +36,7 @@ class BlogsController < ApplicationController
     end
 
     def show_blog
-        blog=Blog.includes(:user, :tags, comments: :user).find_by(id: params[:id])
+        blog=Blog.active.includes(:user, :tags, comments: :user).find_by(id: params[:id])
         if blog
         render json: {
 
@@ -47,7 +47,7 @@ class BlogsController < ApplicationController
               tags: blog.tags.map(&:name),
               likes_count: blog.likes_count,
               created_at: blog.created_at,
-              comments: blog.comments.where(parent_comment_id: nil).map do |comment|
+              comments: blog.comments.active.where(parent_comment_id: nil).map do |comment|
                 serialize_comment(comment)
               end
             }, status: :ok
@@ -58,7 +58,7 @@ class BlogsController < ApplicationController
     end
 
     def my_blogs
-      blogs = @current_user.blogs.includes(:tags).order(created_at: :desc)
+      blogs = @current_user.blogs.active.includes(:tags).order(created_at: :desc)
       render json: blogs.map { |blog|
         {
           id: blog.id,
@@ -73,7 +73,7 @@ class BlogsController < ApplicationController
     end
 
     def update
-      blog = Blog.find_by(id: params[:id])
+      blog = Blog.active.find_by(id: params[:id])
       return render json: { error: "Blog not found" }, status: :not_found unless blog
 
       if blog.user_id != current_user.id
@@ -86,25 +86,25 @@ class BlogsController < ApplicationController
     end
 
     def destroy
-      blog = Blog.find_by(id: params[:id])
+      blog = Blog.active.find_by(id: params[:id])
       return render json: { error: "Blog not found" }, status: :not_found unless blog
 
-      if @blog.user_id != current_user.id
-            render json: {error: "You are not authorized to delete this blog"}, status: :unauthorized
-        elsif @blog.destroy
-                render json: {message: "Blog deleted successfully"}, status: :ok
-        else
-                render json: {errors: @blog.errors.full_messages}, status: :unprocessable_entity
-        end
+      if blog.user_id != @current_user.id
+        render json: { error: "You are not authorized to delete this blog" }, status: :unauthorized
+      elsif blog.soft_delete(by_user: @current_user)
+        render json: { message: "Blog deleted successfully" }, status: :ok
+      else
+        render json: { errors: blog.errors.full_messages }, status: :unprocessable_entity
+      end
     end
 
     #show user preferred blogs on the top
     def prefered_blogs
         p_tags= UserTag.where(user_id: @current_user.id).pluck(:tag_id)    #pluck-only tagid column from row
 
-        p_blogs= Blog.includes(:user, :tags).joins(:tags).where(tags: {id: p_tags}).distinct
+        p_blogs= Blog.active.includes(:user, :tags).joins(:tags).where(tags: {id: p_tags}).distinct
 
-        other_blogs= Blog.includes(:user, :tags).where.not(id: p_blogs.pluck(:id))
+        other_blogs= Blog.active.includes(:user, :tags).where.not(id: p_blogs.pluck(:id))
 
         blogs= p_blogs + other_blogs
 
@@ -122,7 +122,7 @@ class BlogsController < ApplicationController
     end
 
     def is_liked
-        blog = Blog.find_by(id: params[:id])
+        blog = Blog.active.find_by(id: params[:id])
         return render json: { liked: false }, status: :not_found unless blog
 
         liked = Like.exists?(user_id: @current_user.id, blog_id: blog.id)
@@ -145,12 +145,15 @@ class BlogsController < ApplicationController
     end
 
     def serialize_comment(comment)
+      return nil if comment.deleted_at.present?
       {
         id: comment.id,
         content: comment.content,
         user_name: comment.user.name,
+        user_id: comment.user.id,
+        blog_id: comment.blog_id,
         created_at: comment.created_at,
-        replies: comment.replies.map { |reply| serialize_comment(reply) }
+        replies: comment.replies.active.map { |reply| serialize_comment(reply) }
       }
     end
 

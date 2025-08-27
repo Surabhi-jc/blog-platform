@@ -4,9 +4,6 @@ class CommentsController < ApplicationController
   before_action :set_blog
 
   def create
-
-
-
     @comment = @blog.comments.build(comment_params) # build saves in memory not in db
     @comment.user = @current_user
 
@@ -22,6 +19,20 @@ class CommentsController < ApplicationController
       render json: { errors: @comment.errors.full_messages }, status: :unprocessable_entity
     end
   end
+
+  def destroy
+    comment = @blog.comments.find_by(id: params[:comment_id])
+    return render json: { error: "Comment not found" }, status: :not_found unless comment
+
+    if comment.user_id != @current_user.id
+      render json: { error: "You are not authorized to delete this comment" }, status: :unauthorized
+    elsif comment.soft_delete(by_user: @current_user)
+      render json: { message: "Comment deleted successfully" }, status: :ok
+    else
+      render json: { errors: comment.errors.full_messages }, status: :unprocessable_entity
+    end
+  end
+
 
   private
 

@@ -3,12 +3,40 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import "./LandingPage.css";  // reuse same styles
 
-const BlogFeed = ({ blogs, showEdit = false }) => {
+const BlogFeed = ({ blogs,setBlogs, showEdit = false }) => {
     const navigate = useNavigate();
+    const token = sessionStorage.getItem("token");
 
     if (!blogs || blogs.length === 0) {
         return <p>Loading blogs..please wait</p>;
     }
+
+    const handleDelete = async (e, blogId) => {
+        e.stopPropagation(); // prevent card click navigation
+
+        const confirmDelete = window.confirm("Are you sure you want to delete this blog?");
+        if (!confirmDelete) return;
+
+        try {
+            const res = await fetch(`/api/blog/${blogId}`, {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+            if (res.ok) {
+                // remove blog from state
+                setBlogs((prevBlogs) => prevBlogs.filter((b) => b.id !== blogId));
+                alert("Blog deleted successfully!");
+            } else {
+                const err = await res.json();
+                alert(err.error || "Failed to delete blog");
+            }
+        } catch (err) {
+            console.error("Error deleting blog:", err);
+            alert("Error deleting blog");
+        }
+    };
 
     return (
         <div className="blog-container">
@@ -19,6 +47,7 @@ const BlogFeed = ({ blogs, showEdit = false }) => {
                     onClick={() => navigate(`/blogs/${blog.id}`)}
                 >
                     {showEdit && (
+                        <>
                         <button
                             className="edit-icon"
                             title="Edit blog"
@@ -30,6 +59,16 @@ const BlogFeed = ({ blogs, showEdit = false }) => {
                         >
                             ✏️
                         </button>
+
+                        <button
+                            className="delete-icon"
+                            title="Delete blog"
+                            aria-label="Delete blog"
+                            onClick={(e) => handleDelete(e, blog.id)}
+                            >
+                            🗑️
+                        </button>
+                        </>
                     )}
 
                     <h2>{blog.title}</h2>

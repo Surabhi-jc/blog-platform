@@ -109,3 +109,16 @@
     padding: 6px;
     border-left: 2px solid #ccc;  /* vertical line for clarity */
 }
+.delete-icon {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: red;
+    margin-left: 10px;
+}
+
+.comment em {
+    color: #888;
+    font-style: italic;
+}
+

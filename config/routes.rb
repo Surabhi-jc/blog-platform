@@ -21,7 +21,7 @@ Rails.application.routes.draw do
   post "/api/login", to: "authentication#login"
   post "/api/blog", to: "blogs#create"
   put "/blog/:id", to: "blogs#update"
-  delete "/blog/:id", to: "blogs#destroy"
+  delete "/api/blog/:id", to: "blogs#destroy"
   get "/api/blog/show", to: "blogs#show"
   get "/api/blog/prefered_blogs", to: "blogs#prefered_blogs"
   get "/api/blog/:id", to: "blogs#show_blog"
@@ -36,6 +36,8 @@ Rails.application.routes.draw do
   get "/api/tags", to: "tags#show_tags"
 
   post "/blog/:id/comment", to: "comments#create"
+  delete "/api/blog/:id/comments/:comment_id", to: "comments#destroy"
+
 
 
   # Defines the root path route ("/")
