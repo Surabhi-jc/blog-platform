@@ -27,6 +27,13 @@ Rails.application.routes.draw do
   get "/api/blog/:id", to: "blogs#show_blog"
   get "/api/blog/:id/is_liked", to: "blogs#is_liked"
   get "/user/my_blogs", to: "blogs#my_blogs"
+  patch "/api/blog/:id/restore", to: "blogs#restore"
+
+  #admin route
+  namespace :admin do
+    get "blogs/active", to: "blogs#active"
+    get "blogs/deleted", to: "blogs#deleted"
+  end
 
 
   # resources :likes, only: [:create]

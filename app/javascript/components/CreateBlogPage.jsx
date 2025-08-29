@@ -41,12 +41,20 @@ const CreateBlogPage = () => {
                 .then((data) => {
                     setTitle(data.title || "");
                     setContent(data.content || "");
-                    setSelectedTags(data.tags ? data.tags.map((t) => t.id) : []);
+                    if (data.tags) {
+                        const matchedIds = data.tags
+                            .map((tagName) => {
+                                const match = availableTags.find((t) => t.name === tagName);
+                                return match ? match.id : null;
+                            })
+                            .filter((id) => id !== null);
+                        setSelectedTags(matchedIds);
+                    }
                 })
                 .catch(() => setError("Failed to load blog data"))
                 .finally(() => setLoading(false));
         }
-    }, [id, token]);
+    }, [id, token, availableTags]);
     const toggleDropdown = () => {
         setDropdownOpen(!dropdownOpen);
     };

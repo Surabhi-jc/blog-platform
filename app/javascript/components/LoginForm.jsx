@@ -13,8 +13,6 @@ const LoginForm = ({ setUser }) => {
     const handleLogin = async (e) => {
         e.preventDefault();
 
-
-
         try{
             const response = await fetch("/api/login", {
                 method: "POST",

@@ -20,7 +20,7 @@ before_action :authorize_request, only: [:me, :update]
     end
 
 def me
-  render json: { id: @current_user.id, name: @current_user.name, email: @current_user.email }
+  render json: { id: @current_user.id, name: @current_user.name, email: @current_user.email, is_admin: @current_user.is_admin }
 end
 
 def update

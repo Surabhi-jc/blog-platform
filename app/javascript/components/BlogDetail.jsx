@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import "./BlogDetail.css";
+import { useLocation } from "react-router-dom";
+
 
 const BlogDetail = () => {
     const { id } = useParams(); // get blog id from URL
@@ -16,12 +18,25 @@ const BlogDetail = () => {
     const [replyContent, setReplyContent] = useState("");
     const [user, setUser] = useState(null);
     const [comments, setComments] = useState([]);
+    const location = useLocation();
+
 
     const token = sessionStorage.getItem("token");
+
+
+    const handleBack = () => {
+        if (location.state?.from) {
+            navigate(location.state.from);
+        } else {
+            navigate("/"); // fallback
+        }
+    };
+
 
     // Fetch current user
     useEffect(() => {
         if (!token) return;
+
 
         fetch("/user/me", {
             headers: { Authorization: `Bearer ${token}` },
@@ -30,6 +45,8 @@ const BlogDetail = () => {
             .then(data => setUser(data))
             .catch(err => console.error("Error fetching user:", err));
     }, [token]);
+
+
 
 
     useEffect(() => {
@@ -45,6 +62,8 @@ const BlogDetail = () => {
                 setLoading(false);
             });
     }, [id]);
+
+
 
 
     //if blog liked by user
@@ -65,20 +84,15 @@ const BlogDetail = () => {
             });
     }, [id, token]);
 
-    const handleLike = () => {
 
+    const handleLike = () => {
         if(!token){
             setMessage("Login to like this blog");
-
-
             sessionStorage.setItem("redirectAfterLogin", `/blogs/${id}`);
-            /* setTimeout(() => {
-                navigate("/login");
-            }, 1000);  */ // gives time for message to appear
             setShowAuthModal(true);
-
             return;
         }
+
 
         fetch("/api/likes", {
             method: "POST",
@@ -99,6 +113,7 @@ const BlogDetail = () => {
             });
     };
 
+
     const handleUnlike = () => {
         fetch(`/api/likes?blog_id=${id}`, {
             method: "DELETE",
@@ -117,6 +132,7 @@ const BlogDetail = () => {
             });
     };
 
+
     const handleAddComment = (e, parentId = null, content) => {
         e && e.preventDefault();
         if (!token) {
@@ -124,6 +140,7 @@ const BlogDetail = () => {
             setShowAuthModal(true);
             return;
         }
+
 
         fetch(`/blog/${id}/comment`, {
             method: "POST",
@@ -140,23 +157,35 @@ const BlogDetail = () => {
                     return;
                 }
 
+
+                const enrichedComment = {
+                    ...data,
+                    user_id: user?.id,
+                    user_name: user?.name,
+                    blog_id: id,
+
+                };
+
+
                 // If top-level comment, append to comments
                 if (!parentId) {
-                    setComments(prev => [...(prev || []), data]);
+                    setComments(prev => [...(prev || []), enrichedComment]);
                 } else {
                     // Insert reply recursively
                     const addReplyRecursively = (arr) =>
                         arr.map(c => {
                             if (c.id === parentId) {
-                                return { ...c, replies: [...(c.replies || []), data] };
+                                return { ...c, replies: [...(c.replies || []), enrichedComment] };
                             } else if (c.replies && c.replies.length) {
                                 return { ...c, replies: addReplyRecursively(c.replies) };
                             }
                             return c;
                         });
 
+
                     setComments(prev => addReplyRecursively(prev || []));
                 }
+
 
                 setNewComment("");
                 setCommentMessage("Comment added!");
@@ -168,26 +197,23 @@ const BlogDetail = () => {
     };
 
 
+
+
     if (loading) return <p>Loading blog...</p>;
     if (!blog) return <p>Blog not found.</p>;
 
+
     return (
         <div className="blog-detail-container">
-            <button onClick={() => {
-                if(token) {
-                    navigate("/blogs/prefered_blogs");
-                } else {
-                    navigate("/");
-                }
-            }}>← Back</button>
-            <h1>{blog.title}</h1>
-            <p><strong>Author:</strong> {blog.author_name}</p>
-            <p><strong>Tags:</strong> {blog.tags.join(", ")}</p>
-            <hr />
-            <p className="blog-content">{blog.content}</p>
-            <hr />
+            <button id="back-style" className={"btn btn-success"} onClick={handleBack}>←</button>
+                <h1>{blog.title}</h1>
+                <p><strong>Author:</strong> {blog.author_name}</p>
+                <p><strong>Tags:</strong> {blog.tags.join(", ")}</p>
+            <div className={"card p-3"} id={"content-style"}>
+                <p className="blog-content">{blog.content}</p>
+            </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "15px", marginTop:"10px" }}>
                 <span role="img" style={{ fontSize: "22px", cursor: "pointer" }}>💬</span>
                 <span
                     style={{
@@ -197,24 +223,29 @@ const BlogDetail = () => {
                     }}
                     onClick={liked ? handleUnlike : handleLike}
                 >
-                 {liked ? "♥" : "♡"}
-                </span>
+                {liked ? "♥" : "♡"}
+               </span>
             </div>
 
 
+
+            <div style={{marginTop: "70px"}}>
+
             <form onSubmit= {(e) => handleAddComment(e, null, newComment)}>
-                <textarea
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Write your comment..."
-                    required
-                />
+               <textarea
+                   value={newComment}
+                   onChange={(e) => setNewComment(e.target.value)}
+                   placeholder="Write your comment..."
+                   required
+               />
                 <button type="submit">Post Comment</button>
             </form>
             {commentMessage && <p className="comment-message">{commentMessage}</p>}
+            </div>
+
 
             <hr />
-            <h3>Comments</h3>
+            <h3 id={"comment-style"}>Comments</h3>
             {comments && comments.length > 0 ? (
                 comments.map(comment => (
                     <Comment
@@ -222,6 +253,7 @@ const BlogDetail = () => {
                         comment={comment}
                         handleAddComment={handleAddComment}
                         token={token}
+                        blogId={id}
                         setShowAuthModal={setShowAuthModal}
                         setCommentMessage={setCommentMessage}
                         currentUserId={user?.id}
@@ -231,8 +263,6 @@ const BlogDetail = () => {
             ) : (
                 <p>No comments yet.</p>
             )}
-
-
 
             {/* Modal */}
             { showAuthModal && (
@@ -244,6 +274,7 @@ const BlogDetail = () => {
                         <button onClick={()=> navigate("/login")}>Login</button>
                         <button onClick={() => navigate("/signup")}>Sign Up</button>
 
+
                     </div>
                 </div>
             )}
@@ -251,15 +282,18 @@ const BlogDetail = () => {
     );
 };
 
-const Comment = ({ comment, handleAddComment, token, setShowAuthModal, setCommentMessage, currentUserId, setComments  }) => {
+
+const Comment = ({ comment,blogId, handleAddComment, token, setShowAuthModal, setCommentMessage, currentUserId, setComments  }) => {
     const [replying, setReplying] = useState(false);
     const [replyContent, setReplyContent] = useState("");
+
 
     const handleReply = (e) => {
         handleAddComment(e, comment.id, replyContent);
         setReplyContent("");
         setReplying(false);
     };
+
 
     // recursive helper to mark deleted in nested arrays
     const markDeletedRecursively = (arr, commentId) =>
@@ -268,6 +302,7 @@ const Comment = ({ comment, handleAddComment, token, setShowAuthModal, setCommen
             return { ...c, replies: c.replies ? markDeletedRecursively(c.replies, commentId) : [] };
         });
 
+
     const handleDelete = async (e, commentId) => {
         e.stopPropagation();
 
@@ -275,7 +310,7 @@ const Comment = ({ comment, handleAddComment, token, setShowAuthModal, setCommen
         if (!confirmDelete) return;
 
         try {
-            const res = await fetch(`/api/blog/${comment.blog_id}/comments/${commentId}`, {
+            const res = await fetch(`/api/blog/${blogId}/comments/${commentId}`, {
                 method: "DELETE",
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -292,31 +327,37 @@ const Comment = ({ comment, handleAddComment, token, setShowAuthModal, setCommen
         }
     };
 
+
     return (
         <div className="comment">
-            <p><strong>{comment.user_name || "Unknown User"}:</strong> {" "}
+
+            <strong>{comment.user_name || "Unknown User"}:</strong> {" "}
                 {comment.deleted_at ? (
                     <em>This comment was deleted by the author</em>
                 ) : (
                     comment.content
-                )} </p>
+                )}
 
+
+            <div className="comment-actions">
             { !comment.deleted_at && (
-            <button onClick={() => {
-                if (!token) {
-                    setCommentMessage("Please login to reply.");
-                    setShowAuthModal(true);
-                    return;
-                }
-                setReplying(!replying);
-            }}>
-                💬 Reply
-            </button>
+                <button type ="button" onClick={() => {
+                    if (!token) {
+                        setCommentMessage("Please login to reply.");
+                        setShowAuthModal(true);
+                        return;
+                    }
+                    setReplying(!replying);
+                }}>
+                    💬 Reply
+                </button>
             )}
+
 
             {/* Delete button (only for own comment) */}
             {comment.user_id === currentUserId && !comment.deleted_at && (
                 <button
+                    type="button"
                     className="delete-icon"
                     onClick={(e) => handleDelete(e, comment.id)}
                     title="Delete comment"
@@ -324,20 +365,23 @@ const Comment = ({ comment, handleAddComment, token, setShowAuthModal, setCommen
                     🗑️
                 </button>
             )}
+            </div>
+
 
             {replying && (
                 <form onSubmit={handleReply}>
-                    <textarea
-                        value={replyContent}
-                        onChange={(e) => setReplyContent(e.target.value)}
-                        placeholder="Write a reply..."
-                        required
-                    />
+                   <textarea
+                       value={replyContent}
+                       onChange={(e) => setReplyContent(e.target.value)}
+                       placeholder="Write a reply..."
+                       required
+                   />
                     <button type="submit">Post Reply</button>
                 </form>
             )}
 
-            {comment.replies && comment.replies.map(reply => (
+
+            {comment.replies && comment.replies.map((reply) => (
                 <div key={reply.id} className="reply">
                     <Comment
                         comment={reply}
@@ -354,4 +398,6 @@ const Comment = ({ comment, handleAddComment, token, setShowAuthModal, setCommen
     );
 };
 
+
 export default BlogDetail;
+

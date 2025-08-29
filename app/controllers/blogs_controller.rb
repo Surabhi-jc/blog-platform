@@ -65,6 +65,7 @@ class BlogsController < ApplicationController
           title: blog.title,
           content: blog.content,
           author_name: blog.user.name,
+          user_id: blog.user.id,
           tags: blog.tags.map(&:name),
           likes_count: blog.likes_count,
           created_at: blog.created_at
@@ -89,22 +90,48 @@ class BlogsController < ApplicationController
       blog = Blog.active.find_by(id: params[:id])
       return render json: { error: "Blog not found" }, status: :not_found unless blog
 
-      if blog.user_id != @current_user.id
-        render json: { error: "You are not authorized to delete this blog" }, status: :unauthorized
-      elsif blog.soft_delete(by_user: @current_user)
-        render json: { message: "Blog deleted successfully" }, status: :ok
+      if @current_user.admin? || blog.user_id == @current_user.id
+        if blog.soft_delete(by_user: @current_user)
+          render json: { message: "Blog deleted successfully" }, status: :ok
+        else
+          render json: { errors: blog.errors.full_messages }, status: :unprocessable_entity
+        end
       else
-        render json: { errors: blog.errors.full_messages }, status: :unprocessable_entity
+        render json: { error: "You are not authorized to delete this blog" }, status: :unauthorized
       end
     end
+
+    def restore
+      blog = Blog.deleted.find_by(id: params[:id])
+      return render json: { error: "Blog not found or not deleted" }, status: :not_found unless blog
+
+      if @current_user.admin?
+        if blog.restore
+          render json: { message: "Blog restored successfully" }, status: :ok
+        else
+          render json: { errors: blog.errors.full_messages }, status: :unprocessable_entity
+        end
+      else
+        render json: { error: "You are not authorized to restore blogs" }, status: :unauthorized
+      end
+    end
+
 
     #show user preferred blogs on the top
     def prefered_blogs
         p_tags= UserTag.where(user_id: @current_user.id).pluck(:tag_id)    #pluck-only tagid column from row
 
-        p_blogs= Blog.active.includes(:user, :tags).joins(:tags).where(tags: {id: p_tags}).distinct
+        p_blogs = Blog.active
+                      .joins(:tags)
+                      .where(tags: { id: p_tags })
+                      .select("DISTINCT ON (blogs.id) blogs.*")  # one row per blog
+                      .includes(:user, :tags)
+                      .order("blogs.id, blogs.created_at DESC")
 
-        other_blogs= Blog.active.includes(:user, :tags).where.not(id: p_blogs.pluck(:id))
+        other_blogs = Blog.active
+                          .where.not(id: p_blogs.map(&:id))
+                          .includes(:user, :tags)
+                          .order(created_at: :desc)
 
         blogs= p_blogs + other_blogs
 
@@ -114,7 +141,8 @@ class BlogsController < ApplicationController
               title: blog.title,
               content: blog.content,
               author_name: blog.user.name,               # blog belongs_to :user
-              tags: blog.tags.map(&:name)                # blog has_many :tags
+              tags: blog.tags.map(&:name),
+              likes_count: blog.likes_count
             }
         end
 

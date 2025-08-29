@@ -9,6 +9,7 @@ import UserHome from "./components/UserHome";
 import CreateBlogPage from "./components/CreateBlogPage";
 import ProfilePage from "./components/ProfilePage";
 import Navbar from "./components/Navbar";
+import AdminDashboard from "./components/AdminDashboard";
 
 const App = () => {
 
@@ -17,8 +18,8 @@ const App = () => {
 
     useEffect(() => {
 
-        if (!token) return;
-
+        if (!token)
+            return;
 
             fetch("/user/me", {
                 headers: { Authorization: `Bearer ${token}` },
@@ -42,12 +43,14 @@ const App = () => {
             <Routes>
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/blogs/:id" element={<BlogDetail />} />
-                <Route path="/signup" element={<SignupForm />} />
+                <Route path="/signup" element={<SignupForm setUser={setUser}/>} />
                 <Route path="/login" element={<LoginForm setUser={setUser}/>} />
                 <Route path="/blogs/prefered_blogs" element={<UserHome user={user}/>} />
                 <Route path="/blog" element={<CreateBlogPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/blogs/:id/edit" element={<CreateBlogPage />} />
+                <Route path="/admin" element={<AdminDashboard />} />
+
             </Routes>
         </Router>
     );

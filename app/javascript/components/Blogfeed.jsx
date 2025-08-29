@@ -3,13 +3,20 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import "./LandingPage.css";  // reuse same styles
 
-const BlogFeed = ({ blogs,setBlogs, showEdit = false }) => {
+const BlogFeed = ({ blogs,setBlogs, showEdit = false, userId, isAdmin=false, showDeletedInfo = false}) => {
     const navigate = useNavigate();
     const token = sessionStorage.getItem("token");
 
-    if (!blogs || blogs.length === 0) {
+    if (blogs === null) {
+        // Blogs not loaded yet
         return <p>Loading blogs..please wait</p>;
     }
+
+    if (blogs.length === 0) {
+        // Blogs loaded, but empty
+        return <p>No blogs to show.</p>;
+    }
+
 
     const handleDelete = async (e, blogId) => {
         e.stopPropagation(); // prevent card click navigation
@@ -38,16 +45,46 @@ const BlogFeed = ({ blogs,setBlogs, showEdit = false }) => {
         }
     };
 
+
+
+    const handleRestore = async (e, blogId) => {
+        e.stopPropagation();
+
+        const confirmRestore = window.confirm("Are you sure you want to restore this blog?");
+        if (!confirmRestore) return;
+
+        try {
+            const res = await fetch(`/api/blog/${blogId}/restore`, {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            if (res.ok) {
+                // remove blog from deleted list
+                setBlogs((prevBlogs) => prevBlogs.filter((b) => b.id !== blogId));
+                alert("Blog restored successfully!");
+            } else {
+                const err = await res.json();
+                alert(err.error || "Failed to restore blog");
+            }
+        } catch (err) {
+            console.error("Error restoring blog:", err);
+            alert("Error restoring blog");
+        }
+    };
+
+
     return (
         <div className="blog-container">
             {blogs.map((blog) => (
                 <div
                     className="blog-card"
                     key={blog.id}
-                    onClick={() => navigate(`/blogs/${blog.id}`)}
+                    onClick={() => navigate(`/blogs/${blog.id}`,{ state: { from: location.pathname } })}
                 >
                     {showEdit && (
-                        <>
                         <button
                             className="edit-icon"
                             title="Edit blog"
@@ -59,7 +96,9 @@ const BlogFeed = ({ blogs,setBlogs, showEdit = false }) => {
                         >
                             ✏️
                         </button>
+                    )}
 
+                        {(!showDeletedInfo && isAdmin === true || (userId && userId === blog.user_id)) && (
                         <button
                             className="delete-icon"
                             title="Delete blog"
@@ -68,13 +107,17 @@ const BlogFeed = ({ blogs,setBlogs, showEdit = false }) => {
                             >
                             🗑️
                         </button>
-                        </>
-                    )}
+                        )}
+
+
 
                     <h2>{blog.title}</h2>
-                    <p>Author: {blog.author_name}</p>
-                    <p>Tags: {Array.isArray(blog.tags) ? blog.tags.join(", ") : "No tags"}</p>
-                    <p>Content: {blog.content}</p>
+                    <p><span className={"fw-bold"}>Author: </span> &nbsp;{blog.author_name}</p>
+                    <p><span className={"fw-bold"}>Tags:</span> &nbsp;  {Array.isArray(blog.tags) ? blog.tags.join(", ") : "No tags"}</p>
+                    <p><span className="fw-bold">Content:</span>&nbsp;
+                        {blog.content.length > 100
+                            ? blog.content.slice(0, 100) + "..."
+                            : blog.content}</p>
                     <div className="likes-row" aria-label={`Likes: ${blog.likes_count}`}>
                         <svg
                             className="star-icon"
@@ -86,6 +129,26 @@ const BlogFeed = ({ blogs,setBlogs, showEdit = false }) => {
                         </svg>
                         <span className="likes-count">{blog.likes_count}</span>
                     </div>
+
+                    {showDeletedInfo && blog.deleted_by && (
+                        <p>
+                            Deleted by: {blog.deleted_by.name} <br />
+                            On: {new Date(blog.deleted_at).toLocaleString()}
+                        </p>
+                    )}
+
+
+                    {showDeletedInfo && (
+                        <button
+                            className="restore-icon"
+                            title="Restore blog"
+                            aria-label="Restore blog"
+                            onClick={(e) => handleRestore(e, blog.id)}
+                        >
+                            ♻️ Restore
+                        </button>
+                    )}
+
                 </div>
             ))}
         </div>

@@ -85,7 +85,7 @@ const ProfilePage = () => {
             <div className="profile-content">
                 {activeSection === "welcome" && (
                     <div>
-                        <h2>Welcome back, {user?.name}</h2>
+                        <h2>Welcome, {user?.name}</h2>
                         <p>Select an option from the left.</p>
                     </div>
                 )}
@@ -113,7 +113,7 @@ const ProfilePage = () => {
                 {activeSection === "blogs" && (
                     <div>
                         <h2>Your Blogs</h2>
-                        <BlogFeed blogs={blogs} showEdit={true} setBlogs={setBlogs} />
+                        <BlogFeed blogs={blogs} showEdit={true} isAdmin={user.is_admin} setBlogs={setBlogs} userId={user?.id} />
                     </div>
                 )}
 

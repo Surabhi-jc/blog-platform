@@ -1,9 +1,8 @@
 import React, { useEffect, useState} from "react";
 import "./LandingPage.css";
-
-
-
 import { useNavigate } from "react-router-dom";
+import BlogFeed from "./Blogfeed";
+
 
 const PreferredBlogs = ({ user }) => {
     const [blogs, setBlogs] = useState([]);
@@ -12,21 +11,9 @@ const PreferredBlogs = ({ user }) => {
 
     const token = sessionStorage.getItem("token");
 
-    {/*}  useEffect(() => {
-        fetch("/user/me", {
-            headers: { Authorization: `Bearer ${token}` }
-        })
-            .then(res => res.json())
-            .then(data => setUser(data))
-            .catch(err => console.error("Failed to load user:", err));
-    }, []);  */}
 
-
-    useEffect(() => {
         const fetchPreferredBlogs = async () => {
             try{
-
-
                 const response= await fetch("/api/blog/prefered_blogs", {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -45,17 +32,28 @@ const PreferredBlogs = ({ user }) => {
             }
         };
 
-        if(token) {
-            fetchPreferredBlogs();
-        }
 
-    }, [token]);
+        // useEffect for initial fetch + polling
+        useEffect(() => {
+            if (!token) return;
+
+            // Initial fetch
+            fetchPreferredBlogs();
+
+            // Poll every 3 minutes (180000 ms)
+            const intervalId = setInterval(fetchPreferredBlogs, 180000);
+
+            // Cleanup on unmount
+            return () => clearInterval(intervalId);
+        }, [token]);
+
+
 
     const navigate = useNavigate();
 
     const handleCreateBlog = () => {
         navigate('/Blog');
-    }
+    };
 
 
 
@@ -63,28 +61,10 @@ const PreferredBlogs = ({ user }) => {
         <div>
 
             {user && <h1>Hello, {user.name}!</h1>}
-            <h1>Recommended for you</h1>
-            <button onClick={handleCreateBlog} className= "create-blog" >Create Blog</button>
+            <h1 className={"text-center"}>Recommended for you</h1>
+            <button type="button" onClick={handleCreateBlog} className= "create-blog">Create Blog</button>
 
-
-
-            {blogs.length === 0 ? (
-                <p>Loading blogs..please wait</p>
-            ): (
-                <div className="blog-container">
-                    {blogs.map((blog) => (
-                        <div className="blog-card" key={blog.id} onClick={() => navigate(`/blogs/${blog.id}`)}>
-                            <h2>{blog.title}</h2>
-                            <p>Author: {blog.author_name}</p>
-                            <p>Tags: {Array.isArray(blog.tags) ? blog.tags.join(", ") : "No tags"}</p> {/*Takes an array and combines it into a single string*/}
-                            <p>Content: {blog.content}</p>
-
-
-                        </div>
-                    ))}
-                </div>
-            )}
-
+            <BlogFeed blogs={blogs} setBlogs={setBlogs} showEdit={false} />
 
         </div>
 

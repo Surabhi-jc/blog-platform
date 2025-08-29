@@ -5,6 +5,8 @@ import "./Navbar.css";
 const Navbar = ({ user, onLogout }) => {
     const navigate = useNavigate();
     const [dropdownOpen, setDropdownOpen] = useState(false);
+
+
     const handleLogout = () => {
         onLogout();
         setDropdownOpen(false);
@@ -13,7 +15,7 @@ const Navbar = ({ user, onLogout }) => {
     return (
         <header className="navbar">
             {/* Logo always visible */}
-            <h2 className="logo" onClick={() => navigate("/")}>
+            <h2 className="logo" onClick={() => user ? navigate("/blogs/prefered_blogs") : navigate("/")}>
                 BlogPlatform
             </h2>
 
@@ -33,6 +35,12 @@ const Navbar = ({ user, onLogout }) => {
                             <div className="dropdown">
                                 <p>{user.name}</p>
                                 <button onClick={() => {navigate("/profile"); setDropdownOpen(false);}}>My Profile</button>
+                                {/* if user is admin */}
+                                {user.is_admin && (
+                                    <button onClick={() => {navigate("/admin"); setDropdownOpen(false);}}>
+                                        Admin Dashboard
+                                    </button>
+                                )}
                                 <button onClick={ () => {handleLogout()} }>Logout</button>
                             </div>
                         )}

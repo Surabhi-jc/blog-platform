@@ -56,7 +56,7 @@ class LikesController < ApplicationController
             status_code = :not_found
         else
             like.destroy
-            response_data = { message: "Blog unliked and tag preference updated" }
+            response_data = { message: "Blog unliked " }
             status_code = :ok
         end
     end

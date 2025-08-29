@@ -2,7 +2,7 @@ import React, {useState} from "react";
 import "./LoginForm.css";
 import {useNavigate} from "react-router-dom";
 
-const SignupForm = () => {
+const SignupForm = ({ setUser }) => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
@@ -29,8 +29,7 @@ const SignupForm = () => {
             });
 
             const data= await response.json();
-            //console.log("status:", response.status)
-            //console.log("response status:", data)
+
             if(!response.ok){
 
                 let errorMessage = "Signup failed";
@@ -40,9 +39,8 @@ const SignupForm = () => {
 
             }
 
-
-
             sessionStorage.setItem("token", data.token);
+            setUser(data.user);
             const redirectPath= sessionStorage.getItem("redirectAfterLogin");
             if(redirectPath){
                 sessionStorage.removeItem("redirectAfterLogin");

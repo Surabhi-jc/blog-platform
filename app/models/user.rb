@@ -3,6 +3,10 @@ class User < ApplicationRecord
   has_many :user_tags
   has_many :likes
   has_many :liked_blogs, through: :likes, source: :blog
+
+  def admin?
+    is_admin
+  end
   
   has_secure_password
 
