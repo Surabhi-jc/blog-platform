@@ -4,32 +4,56 @@ class CommentsController < ApplicationController
   before_action :set_blog
 
   def create
+    begin
     @comment = @blog.comments.build(comment_params) # build saves in memory not in db
     @comment.user = @current_user
 
     if @comment.save
-      render json: {
+      response= {
         id: @comment.id,
         content: @comment.content,
         user_name: @comment.user.name,
         parent_comment_id: @comment.parent_comment_id,
         created_at: @comment.created_at
-      }, status: :created
+      }
+      status= :created
     else
-      render json: { errors: @comment.errors.full_messages }, status: :unprocessable_entity
+      response = { errors: @comment.errors.full_messages }
+      status = :unprocessable_entity
+    end
+
+    render json: response, status: status
+
+    rescue => e
+      Rails.logger.error("Error finding blog: #{e.message}")
+      render json: { error: "Failed to create comment" }, status: :internal_server_error
     end
   end
 
   def destroy
-    comment = @blog.comments.find_by(id: params[:comment_id])
-    return render json: { error: "Comment not found" }, status: :not_found unless comment
+    begin
+     comment = @blog.comments.find_by(id: params[:comment_id])
 
-    if comment.user_id != @current_user.id
-      render json: { error: "You are not authorized to delete this comment" }, status: :unauthorized
-    elsif comment.soft_delete(by_user: @current_user)
-      render json: { message: "Comment deleted successfully" }, status: :ok
-    else
-      render json: { errors: comment.errors.full_messages }, status: :unprocessable_entity
+     if comment.nil?
+       response = { error: "Comment not found" }
+       status   = :not_found
+
+       elsif comment.user_id != @current_user.id && !@current_user.is_admin
+         response = { error: "You are not authorized to delete this comment" }
+         status   = :unauthorized
+
+       elsif comment.soft_delete(by_user: @current_user)
+         response = { message: "Comment deleted successfully" }
+         status   = :ok
+     else
+       response = { errors: comment.errors.full_messages }
+       status   = :unprocessable_entity
+     end
+     render json: response, status: status
+
+    rescue => e
+      Rails.logger.error("Error finding blog: #{e.message}")
+      render json: { error: "Failed to delete comment" }, status: :internal_server_error
     end
   end
 

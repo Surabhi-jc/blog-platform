@@ -9,51 +9,81 @@ class BlogsController < ApplicationController
 
 
     def create
-        blog= @current_user.blogs.new(blog_params)
+      begin
+        blog = @current_user.blogs.new(blog_params)
 
         if blog.save
-            blog.tag_ids = blog_params[:tag_ids] if blog_params[:tag_ids]
-            render json: {message: "Blog creation successful", blog: blog}, status: :created
+          blog.tag_ids = blog_params[:tag_ids] if blog_params[:tag_ids]
+
+          response = { message: "Blog creation successful", blog: blog }
+          status = :created
         else
-            render json: {errors: blog.errors.full_messages }, status: :unprocessable_entity
+          response = { errors: blog.errors.full_messages }
+          status = :unprocessable_entity
         end
 
+        render json: response, status: status
+      rescue => e
+        Rails.logger.error("Error creating blog: #{e.message}")
+        render json: { error: "Failed to create blog" }, status: :internal_server_error
+      end
     end
+
 
     def show
-        blogs=Blog.active.includes(:user, :tags).order(created_at: :desc)
-        render json: blogs.map {|blog|
-            {
-              id: blog.id,
-              title: blog.title,
-              content: blog.content,
-              author_name: blog.user.name,
-              tags: blog.tags.map(&:name),
-              likes_count: blog.likes_count,
-              created_at: blog.created_at
-            }
+      begin
+        blogs = Blog.active
+                    .includes(:user, :tags)
+                    .order(created_at: :desc)
+
+        render json: blogs.map { |blog|
+          {
+            id: blog.id,
+            title: blog.title,
+            content: blog.content,
+            author_name: blog.user.name,
+            tags: blog.tags.map(&:name),
+            likes_count: blog.likes_count,
+            comments_count: blog.comments_count,
+            created_at: blog.created_at
+          }
         }, status: :ok
+      rescue => e
+        Rails.logger.error("Error fetching blogs: #{e.message}")
+        render json: { error: "Failed to fetch blogs" }, status: :internal_server_error
+      end
     end
 
+
     def show_blog
-        blog=Blog.active.includes(:user, :tags, comments: :user).find_by(id: params[:id])
+      begin
+        blog=Blog.includes(:user, :tags, comments: :user).find_by(id: params[:id])
         if blog
-        render json: {
+          response= {
 
               id: blog.id,
               title: blog.title,
               content: blog.content,
+              author_id: blog.user.id,
               author_name: blog.user.name,
               tags: blog.tags.map(&:name),
               likes_count: blog.likes_count,
               created_at: blog.created_at,
-              comments: blog.comments.active.where(parent_comment_id: nil).map do |comment|
-                serialize_comment(comment)
-              end
-            }, status: :ok
+              comments: blog.comments.active.where(parent_comment_id: nil)
+                            .map { |comment| serialize_comment(comment) }
+          }
+
+            status= :ok
         else
-            render json: {error: "Blog not found"}, status: :not_found
+          response = { error: "Blog not found" }
+          status = :not_found
         end
+        render json: response, status: status
+
+      rescue => e
+        Rails.logger.error("Error fetching blog: #{e.message}")
+        render json: { error: "Failed to fetch blog" }, status: :internal_server_error
+      end
 
     end
 
@@ -68,36 +98,97 @@ class BlogsController < ApplicationController
           user_id: blog.user.id,
           tags: blog.tags.map(&:name),
           likes_count: blog.likes_count,
+          comments_count: blog.comments_count,
+          status: blog.status,
+          scheduled_at: blog.scheduled_at,
+          published_at: blog.published_at,
           created_at: blog.created_at
         }
       }, status: :ok
     end
 
-    def update
-      blog = Blog.active.find_by(id: params[:id])
-      return render json: { error: "Blog not found" }, status: :not_found unless blog
+    def following_blogs
+      begin
+        followed_user_ids = @current_user.following.pluck(:id)
 
-      if blog.user_id != current_user.id
-            render json: {error: "Not authorized to update this blog"}, status: :unauthorized
+        blogs = Blog.active
+                    .where(user_id: followed_user_ids)
+                    .includes(:user, :tags)
+                    .order(created_at: :desc)
+
+        render json: {
+          blogs: blogs.map { |blog|
+            {
+              id: blog.id,
+              title: blog.title,
+              content: blog.content,
+              author_name: blog.user.name,
+              tags: blog.tags.map(&:name),
+              likes_count: blog.likes_count,
+              comments_count: blog.comments_count,
+              created_at: blog.created_at
+            }
+          }
+        }, status: :ok
+      rescue => e
+        render json: { error: e.message }, status: :unprocessable_entity
+      end
+    end
+
+
+    def update
+      begin
+      blog = Blog.active.find_by(id: params[:id])
+
+      if blog.nil?
+        response = { error: "Blog not found" }
+        status = :not_found
+
+        elsif blog.user_id != current_user.id
+          response = { error: "Not authorized to update this blog" }
+          status = :unauthorized
+
         elsif blog.update(blog_params)
-        render json: {message: "Blog updation success", blog: blog}, status: :ok
-        else
-            render json: {errors: blog.errors.full_messages}, status: :unprocessable_entity
-        end
+          response = { message: "Blog updation success", blog: blog }
+          status = :ok
+      else
+        response = { errors: blog.errors.full_messages }
+        status = :unprocessable_entity
+      end
+
+      render json: response, status: status
+
+      rescue => e
+        Rails.logger.error("Error updating blog: #{e.message}")
+        render json: { error: "Failed to update blog" }, status: :internal_server_error
+      end
     end
 
     def destroy
+      begin
       blog = Blog.active.find_by(id: params[:id])
-      return render json: { error: "Blog not found" }, status: :not_found unless blog
 
-      if @current_user.admin? || blog.user_id == @current_user.id
+      if blog.nil?
+        response = { error: "Blog not found" }
+        status = :not_found
+        elsif @current_user.admin? || blog.user_id == @current_user.id
         if blog.soft_delete(by_user: @current_user)
-          render json: { message: "Blog deleted successfully" }, status: :ok
+          response = { message: "Blog deleted successfully" }
+          status = :ok
         else
-          render json: { errors: blog.errors.full_messages }, status: :unprocessable_entity
+          response = { errors: blog.errors.full_messages }
+          status = :unprocessable_entity
         end
       else
-        render json: { error: "You are not authorized to delete this blog" }, status: :unauthorized
+        response = { error: "You are not authorized to delete this blog" }
+        status = :unauthorized
+      end
+
+        render json: response, status: status
+
+        rescue => e
+        Rails.logger.error("Error deleting blog: #{e.message}")
+        render json: { error: "Failed to delete blog" }, status: :internal_server_error
       end
     end
 
@@ -119,57 +210,101 @@ class BlogsController < ApplicationController
 
     #show user preferred blogs on the top
     def prefered_blogs
-        p_tags= UserTag.where(user_id: @current_user.id).pluck(:tag_id)    #pluck-only tagid column from row
+      begin
+      p_tags = UserTag.where(user_id: @current_user.id).pluck(:tag_id)
 
-        p_blogs = Blog.active
-                      .joins(:tags)
-                      .where(tags: { id: p_tags })
-                      .select("DISTINCT ON (blogs.id) blogs.*")  # one row per blog
-                      .includes(:user, :tags)
-                      .order("blogs.id, blogs.created_at DESC")
+      # Blogs from last 24 hours (recent first, tag-preferred first)
+      recent_blogs = Blog.active
+                         .where("blogs.created_at >= ?", 1.day.ago)
+                         .left_joins(:tags)
+                         .select("DISTINCT ON (blogs.id) blogs.*")
+                         .includes(:user, :tags)
+                         .order("blogs.id, blogs.created_at DESC")
 
-        other_blogs = Blog.active
-                          .where.not(id: p_blogs.map(&:id))
-                          .includes(:user, :tags)
-                          .order(created_at: :desc)
+      # Within recent_blogs, reorder so that matching tags are prioritized
+      recent_preferred = recent_blogs.select { |b| (b.tags.pluck(:id) & p_tags).any? }
+      recent_others    = recent_blogs.reject { |b| (b.tags.pluck(:id) & p_tags).any? }
 
-        blogs= p_blogs + other_blogs
+      # Older blogs
+      p_blogs = Blog.active
+                    .where("blogs.created_at < ?", 1.day.ago)
+                    .joins(:tags)
+                    .where(tags: { id: p_tags })
+                    .select("DISTINCT ON (blogs.id) blogs.*")
+                    .includes(:user, :tags)
+                    .order("blogs.id, blogs.created_at DESC")
 
-        formatted_blogs = blogs.map do |blog|
-            {
-              id: blog.id,
-              title: blog.title,
-              content: blog.content,
-              author_name: blog.user.name,               # blog belongs_to :user
-              tags: blog.tags.map(&:name),
-              likes_count: blog.likes_count
-            }
-        end
+      other_blogs = Blog.active
+                        .where("blogs.created_at < ?", 1.day.ago)
+                        .where.not(id: p_blogs.map(&:id))
+                        .includes(:user, :tags)
+                        .order(created_at: :desc)
 
-        render json: { blogs: formatted_blogs }, status: :ok
+      # Final merge:
+      blogs = recent_preferred + recent_others + p_blogs + other_blogs
+
+      formatted_blogs = blogs.map do |blog|
+        {
+          id: blog.id,
+          title: blog.title,
+          content: blog.content,
+          author_name: blog.user.name,
+          tags: blog.tags.map(&:name),
+          likes_count: blog.likes_count,
+          comments_count: blog.comments_count,
+          created_at: blog.created_at
+        }
+      end
+      response = { blogs: formatted_blogs }
+      status = :ok
+
+      render json: response, status: status
+
+    rescue => e
+      Rails.logger.error("Error fetching preferred blogs: #{e.message}")
+      render json: { error: "Failed to fetch preferred blogs" }, status: :internal_server_error
     end
+
+    end
+
 
     def is_liked
+      begin
         blog = Blog.active.find_by(id: params[:id])
-        return render json: { liked: false }, status: :not_found unless blog
+        if blog.nil?
+          response = { liked: false }
+          status = :not_found
+        else
+          liked = Like.exists?(user_id: @current_user.id, blog_id: blog.id)
+          response = { liked: liked }
+          status = :ok
+        end
+        render json: response, status: status
 
-        liked = Like.exists?(user_id: @current_user.id, blog_id: blog.id)
-
-        render json: { liked: liked }
+    rescue => e
+      Rails.logger.error("Error checking like status: #{e.message}")
+      render json: { error: "Failed to check like status" }, status: :internal_server_error
     end
+end
+
 
 
     private
 
     def find_blog
+      begin
         @blog= Blog.find_by(id: params[:id])
         unless @blog
             render json: { error: "Blog not found"}, status: :not_found
         end
+      rescue => e
+        Rails.logger.error("Error finding blog: #{e.message}")
+        render json: { error: "Failed to find blog" }, status: :internal_server_error
+      end
     end
     
     def blog_params
-        params.require(:blog).permit(:title, :content, tag_ids: [])
+        params.require(:blog).permit(:title, :content,:status, :scheduled_at, tag_ids: [])
     end
 
     def serialize_comment(comment)
@@ -184,5 +319,6 @@ class BlogsController < ApplicationController
         replies: comment.replies.active.map { |reply| serialize_comment(reply) }
       }
     end
-
 end
+
+

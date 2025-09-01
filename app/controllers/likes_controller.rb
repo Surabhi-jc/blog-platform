@@ -39,7 +39,7 @@ class LikesController < ApplicationController
 
 
     def destroy
-
+      begin
         response_data = {}
         status_code = nil
 
@@ -49,12 +49,11 @@ class LikesController < ApplicationController
             response_data = { error: "Blog not found" }
             status_code = :not_found
         else
-
-        like= Like.find_by(user_id: current_user.id, blog_id: blog.id)
-        if like.nil?
+          like= Like.find_by(user_id: current_user.id, blog_id: blog.id)
+         if like.nil?
             response_data = { error: "Like not found" }
             status_code = :not_found
-        else
+         else
             like.destroy
             response_data = { message: "Blog unliked " }
             status_code = :ok
@@ -62,6 +61,10 @@ class LikesController < ApplicationController
     end
 
         render json: response_data, status: status_code
+      rescue => e
+        Rails.logger.error("Error unliking blog: #{e.message}\n#{e.backtrace.join("\n")}")
+        render json: { error: "Failed to unlike blog" }, status: :internal_server_error
+      end
     end
 
 end

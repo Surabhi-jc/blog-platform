@@ -3,14 +3,17 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import "./LandingPage.css";  // reuse same styles
 
+
 const BlogFeed = ({ blogs,setBlogs, showEdit = false, userId, isAdmin=false, showDeletedInfo = false}) => {
     const navigate = useNavigate();
     const token = sessionStorage.getItem("token");
+
 
     if (blogs === null) {
         // Blogs not loaded yet
         return <p>Loading blogs..please wait</p>;
     }
+
 
     if (blogs.length === 0) {
         // Blogs loaded, but empty
@@ -18,11 +21,15 @@ const BlogFeed = ({ blogs,setBlogs, showEdit = false, userId, isAdmin=false, sho
     }
 
 
+
+
     const handleDelete = async (e, blogId) => {
         e.stopPropagation(); // prevent card click navigation
 
+
         const confirmDelete = window.confirm("Are you sure you want to delete this blog?");
         if (!confirmDelete) return;
+
 
         try {
             const res = await fetch(`/api/blog/${blogId}`, {
@@ -47,11 +54,16 @@ const BlogFeed = ({ blogs,setBlogs, showEdit = false, userId, isAdmin=false, sho
 
 
 
+
+
+
     const handleRestore = async (e, blogId) => {
         e.stopPropagation();
 
+
         const confirmRestore = window.confirm("Are you sure you want to restore this blog?");
         if (!confirmRestore) return;
+
 
         try {
             const res = await fetch(`/api/blog/${blogId}/restore`, {
@@ -60,6 +72,7 @@ const BlogFeed = ({ blogs,setBlogs, showEdit = false, userId, isAdmin=false, sho
                     Authorization: `Bearer ${token}`,
                 },
             });
+
 
             if (res.ok) {
                 // remove blog from deleted list
@@ -76,6 +89,8 @@ const BlogFeed = ({ blogs,setBlogs, showEdit = false, userId, isAdmin=false, sho
     };
 
 
+
+
     return (
         <div className="blog-container">
             {blogs.map((blog) => (
@@ -84,6 +99,7 @@ const BlogFeed = ({ blogs,setBlogs, showEdit = false, userId, isAdmin=false, sho
                     key={blog.id}
                     onClick={() => navigate(`/blogs/${blog.id}`,{ state: { from: location.pathname } })}
                 >
+                    <div className="action-icons">
                     {showEdit && (
                         <button
                             className="edit-icon"
@@ -94,20 +110,47 @@ const BlogFeed = ({ blogs,setBlogs, showEdit = false, userId, isAdmin=false, sho
                                 navigate(`/blogs/${blog.id}/edit`);
                             }}
                         >
-                            ✏️
+                            <img
+                            src="/images/pen.png"   // put your image in public/images/edit.png
+                            alt="Edit"
+                            className="icon-img"
+                            />
                         </button>
                     )}
 
-                        {(!showDeletedInfo && isAdmin === true || (userId && userId === blog.user_id)) && (
+
+                    {(!showDeletedInfo && isAdmin === true || (userId && userId === blog.user_id)) && (
                         <button
                             className="delete-icon"
                             title="Delete blog"
                             aria-label="Delete blog"
                             onClick={(e) => handleDelete(e, blog.id)}
-                            >
-                            🗑️
+                        >
+                            <img
+                                src="/images/bin.png"   // put your image in public/images/edit.png
+                                alt="Edit"
+                                className="icon-img"
+                            />
                         </button>
+                    )}
+                        {showDeletedInfo && (
+                            <button
+                                className="restore-icon"
+                                title="Restore blog"
+                                aria-label="Restore blog"
+                                onClick={(e) => handleRestore(e, blog.id)}
+                            >
+                                <img
+                                    src="/images/reset.png"   // put your image in public/images/edit.png
+                                    alt="Edit"
+                                    className="icon-img"
+                                />
+                            </button>
                         )}
+                    </div>
+
+
+
 
 
 
@@ -115,39 +158,31 @@ const BlogFeed = ({ blogs,setBlogs, showEdit = false, userId, isAdmin=false, sho
                     <p><span className={"fw-bold"}>Author: </span> &nbsp;{blog.author_name}</p>
                     <p><span className={"fw-bold"}>Tags:</span> &nbsp;  {Array.isArray(blog.tags) ? blog.tags.join(", ") : "No tags"}</p>
                     <p><span className="fw-bold">Content:</span>&nbsp;
-                        {blog.content.length > 100
-                            ? blog.content.slice(0, 100) + "..."
+                        {blog.content.length > 150
+                            ? blog.content.slice(0, 150) + "..."
                             : blog.content}</p>
-                    <div className="likes-row" aria-label={`Likes: ${blog.likes_count}`}>
-                        <svg
-                            className="star-icon"
-                            viewBox="0 0 24 24"
-                            role="img"
-                            aria-hidden="true"
-                        >
-                            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                        </svg>
+                    <div className="likes_comments-row">
+                        <img src="/images/red-heart.png" alt="Heart" className="red-heart-icon" />
                         <span className="likes-count">{blog.likes_count}</span>
+
+
+                        <img src="/images/comments.png" alt="comments" className="comment-icon" />
+                        <span className="comments-count">{blog.comments_count}</span>
                     </div>
 
+
                     {showDeletedInfo && blog.deleted_by && (
-                        <p>
-                            Deleted by: {blog.deleted_by.name} <br />
-                            On: {new Date(blog.deleted_at).toLocaleString()}
+                        <p className="deleted-info">
+                            <span className="deleted-by"><strong>Deleted by: </strong>{blog.deleted_by.name}</span>
+                            <span className="deleted-on"><strong>Deleted On: </strong>{new Date(blog.deleted_at).toLocaleString()}</span>
                         </p>
                     )}
 
 
-                    {showDeletedInfo && (
-                        <button
-                            className="restore-icon"
-                            title="Restore blog"
-                            aria-label="Restore blog"
-                            onClick={(e) => handleRestore(e, blog.id)}
-                        >
-                            ♻️ Restore
-                        </button>
-                    )}
+
+
+
+
 
                 </div>
             ))}
@@ -155,4 +190,6 @@ const BlogFeed = ({ blogs,setBlogs, showEdit = false, userId, isAdmin=false, sho
     );
 };
 
+
 export default BlogFeed;
+

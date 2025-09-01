@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_26_120557) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_01_164833) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -32,9 +32,16 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_26_120557) do
     t.integer "likes_count", default: 0, null: false
     t.datetime "deleted_at"
     t.bigint "deleted_by_id"
+    t.integer "comments_count", default: 0, null: false
+    t.string "status", default: "draft", null: false
+    t.datetime "scheduled_at"
+    t.datetime "published_at"
     t.index ["deleted_at"], name: "index_blogs_on_deleted_at"
     t.index ["deleted_by_id"], name: "index_blogs_on_deleted_by_id"
     t.index ["likes_count"], name: "index_blogs_on_likes_count"
+    t.index ["published_at"], name: "index_blogs_on_published_at"
+    t.index ["scheduled_at"], name: "index_blogs_on_scheduled_at"
+    t.index ["status"], name: "index_blogs_on_status"
     t.index ["user_id"], name: "index_blogs_on_user_id"
   end
 
@@ -51,6 +58,16 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_26_120557) do
     t.index ["deleted_at"], name: "index_comments_on_deleted_at"
     t.index ["deleted_by_id"], name: "index_comments_on_deleted_by_id"
     t.index ["user_id"], name: "index_comments_on_user_id"
+  end
+
+  create_table "follows", force: :cascade do |t|
+    t.bigint "follower_id", null: false
+    t.bigint "followed_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["followed_id"], name: "index_follows_on_followed_id"
+    t.index ["follower_id", "followed_id"], name: "index_follows_on_follower_and_followed", unique: true
+    t.check_constraint "follower_id <> followed_id", name: "follows_no_self_follow"
   end
 
   create_table "likes", force: :cascade do |t|
@@ -91,11 +108,12 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_26_120557) do
   add_foreign_key "blog_tags", "tags"
   add_foreign_key "blogs", "users"
   add_foreign_key "blogs", "users", column: "deleted_by_id"
-  add_foreign_key "blogs", "users", column: "deleted_by_id"
   add_foreign_key "comments", "blogs"
   add_foreign_key "comments", "comments", column: "parent_comment_id"
   add_foreign_key "comments", "users"
   add_foreign_key "comments", "users", column: "deleted_by_id"
+  add_foreign_key "follows", "users", column: "followed_id", on_delete: :cascade
+  add_foreign_key "follows", "users", column: "follower_id", on_delete: :cascade
   add_foreign_key "likes", "blogs"
   add_foreign_key "likes", "users"
   add_foreign_key "user_tags", "tags"

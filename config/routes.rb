@@ -17,8 +17,22 @@ Rails.application.routes.draw do
   post "/api/signup", to: "users#create"
   get "/user/me", to: "users#me"
   put "/user/update", to: "users#update"
-
   post "/api/login", to: "authentication#login"
+
+  # follow / Unfollow
+  post   "/user/:id/follow",   to: "follows#follow"
+  delete "/user/:id/unfollow", to: "follows#unfollow"
+
+  # Followers / Following list
+  get "/user/:id/followers",   to: "follows#followers"
+  get "/user/:id/following",   to: "follows#following"
+
+  #get following authors blogs
+  get "/user/following_blogs", to: "blogs#following_blogs"
+
+
+
+
   post "/api/blog", to: "blogs#create"
   put "/blog/:id", to: "blogs#update"
   delete "/api/blog/:id", to: "blogs#destroy"
@@ -36,7 +50,7 @@ Rails.application.routes.draw do
   end
 
 
-  # resources :likes, only: [:create]
+
   post "/api/likes", to: "likes#create"
   delete "/api/likes", to: "likes#destroy"
 

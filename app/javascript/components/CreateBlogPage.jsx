@@ -106,27 +106,32 @@ const CreateBlogPage = () => {
     if (loading) return <p>Loading blog data...</p>;
 
     return (
-        <div className="create-blog-container">
-            <h1>{id ? "Update Blog" : "Create New Blog"}</h1>
+        <div className="create-blog-container card mt-lg-5 p-5">
+            <h1 className={"text-center"}>{id ? "Update Blog" : "Create New Blog"}</h1>
             {error && <p className="error-text">{error}</p>}
 
-            <form onSubmit={handleSubmit}>
-                <div>
-                    <label>Title</label>
+            <form onSubmit={handleSubmit} className="d-flex flex-column gap-3">
+                <div className="mb-3">
+                    <label htmlFor="title" className="form-label">Title</label>
                     <input
+                        id="title"
                         type="text"
+                        className="form-control"
                         value={title}
                         onChange={(e)=> setTitle(e.target.value)}
                         required
                     />
                 </div>
 
-                <div>
-                    <label>Content</label>
+                <div className="mb-3">
+                    <label htmlFor="content" className="form-label">Content</label>
                     <textarea
+                        id="content"
+                        className="form-control"
                         value={content}
                         onChange={(e) => setContent(e.target.value)}
                         required
+                        rows={6}
                     />
                 </div>
 
@@ -135,14 +140,14 @@ const CreateBlogPage = () => {
                     <div className="selected-tags-box">
 
                         {selectedTags.map((tagId) => {
-                                  const tag = availableTags.find(t => t.id === tagId);
-                                  return (
-                                          <div key={tagId} className="tag-item">
-                                                   {tag ? tag.name : tagId}
-                                                   <span className="remove-tag" onClick={() => removeTag(tagId)}>×</span>
-                                               </div>
-                                       );
-                               })}
+                            const tag = availableTags.find(t => t.id === tagId);
+                            return (
+                                <div key={tagId} className="tag-item">
+                                    {tag ? tag.name : tagId}
+                                    <span className="remove-tag" onClick={() => removeTag(tagId)}>×</span>
+                                </div>
+                            );
+                        })}
                     </div>
                     <button
                         type="button"
@@ -169,10 +174,11 @@ const CreateBlogPage = () => {
                     </div>
                 )}
 
-                <button type="submit" className="publish-btn">{id ? "Update Blog" : "Publish Blog"}</button>
-
-
+                <button type="submit" className="btn btn-success mt-2">
+                    {id ? "Update Blog" : "Publish Blog"}
+                </button>
             </form>
+
         </div>
     );
 };

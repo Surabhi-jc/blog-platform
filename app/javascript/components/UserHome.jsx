@@ -7,14 +7,18 @@ import BlogFeed from "./Blogfeed";
 const PreferredBlogs = ({ user }) => {
     const [blogs, setBlogs] = useState([]);
     const [error, setError] = useState("");
-   // const [user, setUser] = useState(null);
+    const [activeTab, setActiveTab] = useState("recommended");
 
     const token = sessionStorage.getItem("token");
 
 
-        const fetchPreferredBlogs = async () => {
+        const fetchBlogs = async (tab) => {
             try{
-                const response= await fetch("/api/blog/prefered_blogs", {
+                let url = tab === "recommended"
+                    ? "/api/blog/prefered_blogs"
+                    : "/user/following_blogs";
+
+                const response= await fetch(url, {
                     headers: {
                         Authorization: `Bearer ${token}`,
                     },
@@ -25,7 +29,7 @@ const PreferredBlogs = ({ user }) => {
                 }
 
                 const data= await response.json();
-                setBlogs(data.blogs);
+                setBlogs(data.blogs || []);
 
             }catch(err){
                 setError(err.message);
@@ -37,15 +41,14 @@ const PreferredBlogs = ({ user }) => {
         useEffect(() => {
             if (!token) return;
 
-            // Initial fetch
-            fetchPreferredBlogs();
+            fetchBlogs(activeTab);
 
             // Poll every 3 minutes (180000 ms)
-            const intervalId = setInterval(fetchPreferredBlogs, 180000);
+            const intervalId = setInterval(() => fetchBlogs(activeTab), 180000);
 
             // Cleanup on unmount
             return () => clearInterval(intervalId);
-        }, [token]);
+        }, [token, activeTab]);
 
 
 
@@ -59,10 +62,45 @@ const PreferredBlogs = ({ user }) => {
 
     return (
         <div>
+            <div className="d-flex align-items-center justify-content-between mb-3 mt-2 mx-5">
 
-            {user && <h1>Hello, {user.name}!</h1>}
-            <h1 className={"text-center"}>Recommended for you</h1>
-            <button type="button" onClick={handleCreateBlog} className= "create-blog">Create Blog</button>
+                <div className="flex-grow-1 text-start">
+                    {user && <h5 className="title-style">Hello, {user.name}!</h5>}
+                </div>
+
+                <div className="flex-grow-1 text-center">
+                    <h5 className="title-style">Blogs for you</h5>
+                </div>
+                <div className="flex-grow-1 text-end ">
+                    <button
+                        type="button"
+                        onClick={handleCreateBlog}
+                        className="btn btn-success"
+                    >
+                        Create New Blog
+                    </button>
+                </div>
+            </div>
+
+            {/* Tabs */}
+            <ul className="nav nav-tabs mb-3 justify-content-center">
+                <li className="nav-item">
+                    <button
+                        className={`nav-link ${activeTab === "recommended" ? "active" : ""}`}
+                        onClick={() => setActiveTab("recommended")}
+                    >
+                        Recommended
+                    </button>
+                </li>
+                <li className="nav-item">
+                    <button
+                        className={`nav-link ${activeTab === "following" ? "active" : ""}`}
+                        onClick={() => setActiveTab("following")}
+                    >
+                        Following
+                    </button>
+                </li>
+            </ul>
 
             <BlogFeed blogs={blogs} setBlogs={setBlogs} showEdit={false} />
 

@@ -10,6 +10,7 @@ const ProfilePage = () => {
     const [blogs, setBlogs] = useState([]);
     const [activeSection, setActiveSection] = useState("welcome"); // "welcome", "edit", "blogs", "following"
     const navigate = useNavigate();
+    const [following, setFollowing] = useState([]);
 
     const token = sessionStorage.getItem("token");
 
@@ -42,6 +43,34 @@ const ProfilePage = () => {
         if (token) fetchUserBlogs();
     }, [token]);
 
+    useEffect(() => {
+        const fetchFollowing = async () => {
+            if (!user?.id || !token) return;
+            try {
+                const res = await fetch(`/user/${user.id}/following`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (!res.ok) {
+                    setFollowing([]);
+                    return;
+                }
+                const data = await res.json();
+                // Support multiple shapes: array, { following: [...] }, { followers: [...] }
+                const list = Array.isArray(data)
+                    ? data
+                    : data.following || data.followers || data;
+                setFollowing(Array.isArray(list) ? list : []);
+            } catch (err) {
+                console.error("Error fetching following authors:", err);
+                setFollowing([]);
+            }
+        };
+
+        if (activeSection === "following") {
+            fetchFollowing();
+        }
+    }, [activeSection, token, user]);
+
     const handleSave = async () => {
         try {
             const res = await fetch(`/user/update`, {
@@ -67,15 +96,38 @@ const ProfilePage = () => {
         }
     };
 
+    const handleUnfollow = async (authorId) => {
+        if (!token) {
+            setMessage("Please login to manage follows.");
+            return;
+        }
+        try {
+            const res = await fetch(`/user/${authorId}/unfollow`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok) {
+                // remove from UI
+                setFollowing((prev) => prev.filter((a) => a.id !== authorId));
+                setMessage(data.message || "Unfollowed successfully");
+            } else {
+                setMessage(data.error || data.errors?.join(", ") || "Failed to unfollow");
+            }
+        } catch (err) {
+            console.error("Error unfollowing author:", err);
+            setMessage("Error unfollowing author.");
+        }
+    };
 
 
     return (
         <div className="profile-page">
             {/* Left Sidebar */}
             <div className="profile-sidebar">
-                <button onClick={() => setActiveSection("edit")}>Edit Profile</button>
-                <button onClick={() => setActiveSection("blogs")}>My Blogs</button>
-                <button onClick={() => setActiveSection("following")}>
+                <button onClick={() => setActiveSection("edit")} className={"btn btn-light"}>Edit Profile</button>
+                <button onClick={() => setActiveSection("blogs")} className={"btn btn-light"}>My Blogs</button>
+                <button onClick={() => setActiveSection("following")} className={"btn btn-light"}>
                     Following Authors
                 </button>
 
@@ -91,7 +143,8 @@ const ProfilePage = () => {
                 )}
 
                 {activeSection === "edit" && (
-                    <div>
+                    <div className="edit-container">
+                        <div className="profile-form">
                         <h2>Edit Profile</h2>
                         {user ? (
                             <>
@@ -108,6 +161,7 @@ const ProfilePage = () => {
                             <p>Loading...</p>
                         )}
                     </div>
+                    </div>
                 )}
 
                 {activeSection === "blogs" && (
@@ -120,7 +174,24 @@ const ProfilePage = () => {
                 {activeSection === "following" && (
                     <div>
                         <h2>Authors You Follow</h2>
-                        <p>TODO: Fetch & display following authors here.</p>
+                        {following.length > 0 ? (
+                            <ul className="list-unstyled following-list mt-4">
+                                {following.map((author) => (
+                                    <li key={author.id} className="author-item row align-items-center g-1 py-2">
+                                        <div className="col">
+                                            <span className="author-name">{author.name}</span>
+                                        </div>
+                                        <div className="col-auto">
+                                            <button className="btn btn-sm btn-outline-danger" onClick={() => handleUnfollow(author.id)}>
+                                                Unfollow
+                                            </button>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p>You are not following any authors yet.</p>
+                        )}
                     </div>
                 )}
             </div>

@@ -13,7 +13,7 @@ const Navbar = ({ user, onLogout }) => {
         navigate("/");
     };
     return (
-        <header className="navbar">
+        <header className="navbar px-4 py-3">
             {/* Logo always visible */}
             <h2 className="logo" onClick={() => user ? navigate("/blogs/prefered_blogs") : navigate("/")}>
                 BlogPlatform
@@ -32,7 +32,7 @@ const Navbar = ({ user, onLogout }) => {
             </span>
 
                         {dropdownOpen && (
-                            <div className="dropdown">
+                            <div className="dropdown text-center">
                                 <p>{user.name}</p>
                                 <button onClick={() => {navigate("/profile"); setDropdownOpen(false);}}>My Profile</button>
                                 {/* if user is admin */}

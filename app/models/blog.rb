@@ -9,6 +9,7 @@ class Blog < ApplicationRecord
   has_many :liked_by_users, through: :likes, source: :user
   has_many :comments
 
+
   def soft_delete(by_user:)
     update(deleted_at: Time.current, deleted_by: by_user)
   end

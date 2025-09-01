@@ -15,6 +15,7 @@ class Admin::BlogsController < ApplicationController
         user_id: blog.user.id,
         tags: blog.tags.map(&:name),
         likes_count: blog.likes_count,
+        comments_count: blog.comments_count,
         created_at: blog.created_at
       }
     }, status: :ok
@@ -33,6 +34,7 @@ class Admin::BlogsController < ApplicationController
         user_id: blog.user.id,
         tags: blog.tags.map(&:name),
         likes_count: blog.likes_count,
+        comments_count: blog.comments_count,
         created_at: blog.created_at,
         deleted_at: blog.deleted_at,
         deleted_by: blog.deleted_by ? { id: blog.deleted_by.id, name: blog.deleted_by.name } : nil

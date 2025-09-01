@@ -1,7 +1,8 @@
 .create-blog-container {
-    max-width: 500px;
+    max-width: 600px;
     margin: auto;
     padding: 20px;
+    box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
 }
 
 .error-text {

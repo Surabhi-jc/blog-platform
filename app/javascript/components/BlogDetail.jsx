@@ -18,6 +18,10 @@ const BlogDetail = () => {
     const [replyContent, setReplyContent] = useState("");
     const [user, setUser] = useState(null);
     const [comments, setComments] = useState([]);
+    const [showCommentBox, setShowCommentBox] = useState(false);
+    const [isFollowing, setIsFollowing] = useState(false);
+
+
     const location = useLocation();
 
 
@@ -64,6 +68,20 @@ const BlogDetail = () => {
     }, [id]);
 
 
+// to check if current user is following the author
+    useEffect(() => {
+        if (!token || !blog?.author_id) return;
+
+        fetch(`/user/${blog.author_id}/followers`, {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then(res => res.json())
+            .then(data => {
+                const followerIds = data.followers.map(f => f.id);
+                setIsFollowing(followerIds.includes(user?.id));
+            })
+            .catch(err => console.error("Error checking follow status:", err));
+    }, [token, blog, user]);
 
 
     //if blog liked by user
@@ -130,6 +148,40 @@ const BlogDetail = () => {
             .catch(error => {
                 console.error("Error unliking blog:", error);
             });
+    };
+
+    const handleFollow = () => {
+        if (!token) {
+            setMessage("Login to follow authors");
+            setShowAuthModal(true);
+            return;
+        }
+
+        fetch(`/user/${blog.author_id}/follow`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.message) {
+                    setIsFollowing(true);
+                }
+            })
+            .catch(err => console.error("Error following user:", err));
+    };
+
+    const handleUnfollow = () => {
+        fetch(`/user/${blog.author_id}/unfollow`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.message) {
+                    setIsFollowing(false);
+                }
+            })
+            .catch(err => console.error("Error unfollowing user:", err));
     };
 
 
@@ -207,30 +259,46 @@ const BlogDetail = () => {
         <div className="blog-detail-container">
             <button id="back-style" className={"btn btn-success"} onClick={handleBack}>←</button>
                 <h1>{blog.title}</h1>
-                <p><strong>Author:</strong> {blog.author_name}</p>
-                <p><strong>Tags:</strong> {blog.tags.join(", ")}</p>
+            <p>
+                <strong>Author:</strong> {blog.author_name}
+                {token && user?.id !== blog.author_id && (
+                    <button
+                        style={{ marginLeft: "10px" }}
+                        className="btn btn-sm btn-outline-primary"
+                        onClick={isFollowing ? handleUnfollow : handleFollow}
+                    >
+                        {isFollowing ? "Unfollow" : "Follow"}
+                    </button>
+                )}
+            </p>
+
+            <p><strong>Tags:</strong> {blog.tags.join(", ")}</p>
             <div className={"card p-3"} id={"content-style"}>
                 <p className="blog-content">{blog.content}</p>
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: "15px", marginTop:"10px" }}>
-                <span role="img" style={{ fontSize: "22px", cursor: "pointer" }}>💬</span>
-                <span
-                    style={{
-                        fontSize: "22px",
-                        cursor: "pointer",
-                        color: liked ? "red" : "black"
-                    }}
+                <img
+                    src="/images/comments.png"
+                    alt="Comments"
+                    className="comment-icon"
+                    style={{ cursor: "pointer", width: "22px", height: "22px" }}
+                    onClick={() => setShowCommentBox(!showCommentBox)}   // to toggle comment box
+                />
+
+                <img
+                    src={liked ? "/images/red-heart.png" : "/images/heart.png"}
+                    alt="Heart"
+                    className={`heart-icon ${liked ? "pop" : ""}`}
                     onClick={liked ? handleUnlike : handleLike}
-                >
-                {liked ? "♥" : "♡"}
-               </span>
+                />
+
+
             </div>
 
 
-
+            {showCommentBox && (
             <div style={{marginTop: "70px"}}>
-
             <form onSubmit= {(e) => handleAddComment(e, null, newComment)}>
                <textarea
                    value={newComment}
@@ -242,6 +310,7 @@ const BlogDetail = () => {
             </form>
             {commentMessage && <p className="comment-message">{commentMessage}</p>}
             </div>
+            )}
 
 
             <hr />
@@ -257,6 +326,7 @@ const BlogDetail = () => {
                         setShowAuthModal={setShowAuthModal}
                         setCommentMessage={setCommentMessage}
                         currentUserId={user?.id}
+                        user={user}
                         setComments={setComments}    // pass setter down
                     />
                 ))
@@ -283,7 +353,7 @@ const BlogDetail = () => {
 };
 
 
-const Comment = ({ comment,blogId, handleAddComment, token, setShowAuthModal, setCommentMessage, currentUserId, setComments  }) => {
+const Comment = ({ comment,blogId, handleAddComment, token, setShowAuthModal, setCommentMessage, currentUserId, user, setComments  }) => {
     const [replying, setReplying] = useState(false);
     const [replyContent, setReplyContent] = useState("");
 
@@ -333,7 +403,7 @@ const Comment = ({ comment,blogId, handleAddComment, token, setShowAuthModal, se
 
             <strong>{comment.user_name || "Unknown User"}:</strong> {" "}
                 {comment.deleted_at ? (
-                    <em>This comment was deleted by the author</em>
+                    <em>This comment was deleted </em>
                 ) : (
                     comment.content
                 )}
@@ -355,7 +425,7 @@ const Comment = ({ comment,blogId, handleAddComment, token, setShowAuthModal, se
 
 
             {/* Delete button (only for own comment) */}
-            {comment.user_id === currentUserId && !comment.deleted_at && (
+                {(!comment.deleted_at && (comment.user_id === currentUserId || user?.is_admin)) && (
                 <button
                     type="button"
                     className="delete-icon"
@@ -381,15 +451,17 @@ const Comment = ({ comment,blogId, handleAddComment, token, setShowAuthModal, se
             )}
 
 
-            {comment.replies && comment.replies.map((reply) => (
+            {comment.replies && comment.replies.length > 0 && comment.replies.map(reply => reply && (
                 <div key={reply.id} className="reply">
                     <Comment
                         comment={reply}
+                        blogId={blogId}
                         handleAddComment={handleAddComment}
                         token={token}
                         setShowAuthModal={setShowAuthModal}
                         setCommentMessage={setCommentMessage}
                         currentUserId={currentUserId}
+                        user={user}
                         setComments={setComments}
                     />
                 </div>
