@@ -6,7 +6,7 @@ const AdminDashboard = () => {
     const [activeSection, setActiveSection] = useState("welcome"); // "welcome", "active", "deleted"
     const [activeBlogs, setActiveBlogs] = useState([]);
     const [deletedBlogs, setDeletedBlogs] = useState([]);
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
 
     // Fetch Active Blogs
     useEffect(() => {

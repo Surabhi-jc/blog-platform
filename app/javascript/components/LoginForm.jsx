@@ -27,12 +27,12 @@ const LoginForm = ({ setUser }) => {
                 throw new Error(data.error || "Login failed");
             }
 
-            sessionStorage.setItem("token", data.token);
+            localStorage.setItem("token", data.token);
             setUser(data.user);
 
-            const redirectPath= sessionStorage.getItem("redirectAfterLogin");
+            const redirectPath= localStorage.getItem("redirectAfterLogin");
             if(redirectPath){
-                sessionStorage.removeItem("redirectAfterLogin");
+                localStorage.removeItem("redirectAfterLogin");
                 navigate(redirectPath);
             }
             else{

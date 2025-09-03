@@ -6,7 +6,7 @@ import "./LandingPage.css";  // reuse same styles
 
 const BlogFeed = ({ blogs,setBlogs, showEdit = false, userId, isAdmin=false, showDeletedInfo = false}) => {
     const navigate = useNavigate();
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
 
 
     if (blogs === null) {

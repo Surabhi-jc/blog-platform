@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import LandingPage from "./components/LandingPage";
 import BlogDetail from "./components/BlogDetail";
@@ -14,7 +14,8 @@ import AdminDashboard from "./components/AdminDashboard";
 const App = () => {
 
     const [user, setUser] = useState(null);
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
+
 
     useEffect(() => {
 
@@ -31,9 +32,16 @@ const App = () => {
     }, [token]);
 
     const handleLogout = () => {
-        sessionStorage.removeItem("token");
+        localStorage.removeItem("token");
         setUser(null);
+    };
 
+    const ProtectedRoute = ({ children }) => {
+        return token ? children : <Navigate to="/login" replace />;
+    };
+
+    const PublicRoute = ({ children }) => {
+        return token ? <Navigate to="/blogs/prefered_blogs" replace /> : children;
     };
 
     return (
@@ -41,15 +49,16 @@ const App = () => {
             <Navbar user={user} onLogout={handleLogout} />
 
             <Routes>
-                <Route path="/" element={<LandingPage />} />
+                <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
                 <Route path="/blogs/:id" element={<BlogDetail />} />
                 <Route path="/signup" element={<SignupForm setUser={setUser}/>} />
                 <Route path="/login" element={<LoginForm setUser={setUser}/>} />
-                <Route path="/blogs/prefered_blogs" element={<UserHome user={user}/>} />
-                <Route path="/blog" element={<CreateBlogPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/blogs/:id/edit" element={<CreateBlogPage />} />
-                <Route path="/admin" element={<AdminDashboard />} />
+
+                <Route path="/blogs/prefered_blogs" element={<ProtectedRoute><UserHome user={user}/></ProtectedRoute>} />
+                <Route path="/blog" element={<ProtectedRoute><CreateBlogPage /></ProtectedRoute>} />
+                <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+                <Route path="/blogs/:id/edit" element={<ProtectedRoute><CreateBlogPage /></ProtectedRoute>} />
+                <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
 
             </Routes>
         </Router>

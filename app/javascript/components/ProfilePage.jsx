@@ -12,7 +12,7 @@ const ProfilePage = () => {
     const navigate = useNavigate();
     const [following, setFollowing] = useState([]);
 
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
 
     // Fetch current user
     useEffect(() => {

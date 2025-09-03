@@ -25,7 +25,7 @@ const BlogDetail = () => {
     const location = useLocation();
 
 
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
 
 
     const handleBack = () => {
@@ -106,7 +106,7 @@ const BlogDetail = () => {
     const handleLike = () => {
         if(!token){
             setMessage("Login to like this blog");
-            sessionStorage.setItem("redirectAfterLogin", `/blogs/${id}`);
+            localStorage.setItem("redirectAfterLogin", `/blogs/${id}`);
             setShowAuthModal(true);
             return;
         }
@@ -426,15 +426,16 @@ const Comment = ({ comment,blogId, handleAddComment, token, setShowAuthModal, se
 
             {/* Delete button (only for own comment) */}
                 {(!comment.deleted_at && (comment.user_id === currentUserId || user?.is_admin)) && (
-                <button
-                    type="button"
-                    className="delete-icon"
-                    onClick={(e) => handleDelete(e, comment.id)}
-                    title="Delete comment"
-                >
-                    🗑️
-                </button>
-            )}
+                    <button
+                        type="button"
+                        className="delete-icon"
+                        onClick={(e) => handleDelete(e, comment.id)}
+                        title="Delete comment"
+                    >
+                        🗑️
+                    </button>
+
+                )}
             </div>
 
 

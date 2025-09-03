@@ -9,7 +9,7 @@ const PreferredBlogs = ({ user }) => {
     const [error, setError] = useState("");
     const [activeTab, setActiveTab] = useState("recommended");
 
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
 
 
         const fetchBlogs = async (tab) => {
