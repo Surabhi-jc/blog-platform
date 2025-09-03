@@ -14,11 +14,19 @@ const CreateBlogPage = () => {
     const [selectedTags, setSelectedTags] = useState([]);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [currentUserId, setCurrentUserId] = useState(null);
 
+    const token= localStorage.getItem('token');
 
-
-    const token= sessionStorage.getItem('token');
-
+    // Load current user
+    useEffect(() => {
+        fetch("/user/me", {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then((res) => res.json())
+            .then((data) => setCurrentUserId(data.id))
+            .catch(() => setError("Failed to load current user"));
+    }, [token]);
 
 //load tags
     useEffect(() => {
@@ -30,7 +38,7 @@ const CreateBlogPage = () => {
 
     //if editing, fetch blog details
     useEffect(() => {
-        if (id) {
+        if (id && currentUserId !== null) {
             setLoading(true);
             fetch(`/api/blog/${id}`, {
                 headers: {
@@ -39,6 +47,10 @@ const CreateBlogPage = () => {
             })
                 .then((res) => res.json())
                 .then((data) => {
+                    if (data.author_id !== currentUserId) {
+                        setError("You are not authorized to edit this blog.");
+                        return;
+                    }
                     setTitle(data.title || "");
                     setContent(data.content || "");
                     if (data.tags) {
@@ -54,7 +66,7 @@ const CreateBlogPage = () => {
                 .catch(() => setError("Failed to load blog data"))
                 .finally(() => setLoading(false));
         }
-    }, [id, token, availableTags]);
+    }, [id, token, availableTags, currentUserId]);
     const toggleDropdown = () => {
         setDropdownOpen(!dropdownOpen);
     };
@@ -104,6 +116,14 @@ const CreateBlogPage = () => {
     }
 
     if (loading) return <p>Loading blog data...</p>;
+
+    if (error === "You are not authorized to edit this blog.") {
+        return (
+            <div className="d-flex justify-content-center align-items-center" style={{ height: "60vh" }}>
+                <p className="text-danger fw-bold fs-3">{error}</p>
+            </div>
+        );
+    }
 
     return (
         <div className="create-blog-container card mt-lg-5 p-5">
