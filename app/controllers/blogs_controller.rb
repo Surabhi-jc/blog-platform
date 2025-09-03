@@ -217,9 +217,9 @@ class BlogsController < ApplicationController
       recent_blogs = Blog.active
                          .where("blogs.created_at >= ?", 1.day.ago)
                          .left_joins(:tags)
-                         .select("DISTINCT ON (blogs.id) blogs.*")
+                         .distinct
                          .includes(:user, :tags)
-                         .order("blogs.id, blogs.created_at DESC")
+                         .order("blogs.created_at DESC")
 
       # Within recent_blogs, reorder so that matching tags are prioritized
       recent_preferred = recent_blogs.select { |b| (b.tags.pluck(:id) & p_tags).any? }
@@ -230,9 +230,9 @@ class BlogsController < ApplicationController
                     .where("blogs.created_at < ?", 1.day.ago)
                     .joins(:tags)
                     .where(tags: { id: p_tags })
-                    .select("DISTINCT ON (blogs.id) blogs.*")
+                    .distinct
                     .includes(:user, :tags)
-                    .order("blogs.id, blogs.created_at DESC")
+                    .order("blogs.created_at DESC")
 
       other_blogs = Blog.active
                         .where("blogs.created_at < ?", 1.day.ago)
