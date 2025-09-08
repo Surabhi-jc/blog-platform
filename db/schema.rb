@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_01_164833) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_03_110435) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -33,15 +33,9 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_01_164833) do
     t.datetime "deleted_at"
     t.bigint "deleted_by_id"
     t.integer "comments_count", default: 0, null: false
-    t.string "status", default: "draft", null: false
-    t.datetime "scheduled_at"
-    t.datetime "published_at"
     t.index ["deleted_at"], name: "index_blogs_on_deleted_at"
     t.index ["deleted_by_id"], name: "index_blogs_on_deleted_by_id"
     t.index ["likes_count"], name: "index_blogs_on_likes_count"
-    t.index ["published_at"], name: "index_blogs_on_published_at"
-    t.index ["scheduled_at"], name: "index_blogs_on_scheduled_at"
-    t.index ["status"], name: "index_blogs_on_status"
     t.index ["user_id"], name: "index_blogs_on_user_id"
   end
 

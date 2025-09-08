@@ -30,6 +30,9 @@ Rails.application.routes.draw do
   #get following authors blogs
   get "/user/following_blogs", to: "blogs#following_blogs"
 
+  get "/user/my_deleted_blogs", to: "blogs#my_deleted_blogs"
+
+
 
 
 

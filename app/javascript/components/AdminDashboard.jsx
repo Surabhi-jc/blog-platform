@@ -9,7 +9,7 @@ const AdminDashboard = () => {
     const token = localStorage.getItem("token");
 
     // Fetch Active Blogs
-    useEffect(() => {
+    {/*} useEffect(() => {
         if (activeSection === "active") {
             fetch("/admin/blogs/active", {
                 headers: { Authorization: `Bearer ${token}` },
@@ -18,7 +18,7 @@ const AdminDashboard = () => {
                 .then((data) => setActiveBlogs(data))
                 .catch((err) => console.error("Error fetching active blogs:", err));
         }
-    }, [activeSection, token]);
+    }, [activeSection, token]);  */}
 
     // Fetch Deleted Blogs
     useEffect(() => {
@@ -37,7 +37,7 @@ const AdminDashboard = () => {
         <div className="profile-page">
             {/* Sidebar */}
             <div className="profile-sidebar">
-                <button onClick={() => setActiveSection("active")}>Active Blogs</button>
+                {/* <button onClick={() => setActiveSection("active")}>Active Blogs</button> */}
                 <button onClick={() => setActiveSection("deleted")}>Deleted Blogs</button>
             </div>
 
@@ -50,12 +50,12 @@ const AdminDashboard = () => {
                     </div>
                 )}
 
-                {activeSection === "active" && (
+                {/* {activeSection === "active" && (
                     <div>
                         <h2>Active Blogs</h2>
                         <BlogFeed blogs={activeBlogs} showEdit={false} setBlogs={setActiveBlogs} isAdmin={true} userId={null}/>
                     </div>
-                )}
+                )} */}
 
                 {activeSection === "deleted" && (
                     <div>

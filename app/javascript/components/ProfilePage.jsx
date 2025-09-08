@@ -8,6 +8,7 @@ const ProfilePage = () => {
     const [name, setName] = useState("");
     const [message, setMessage] = useState("");
     const [blogs, setBlogs] = useState([]);
+    const [deletedBlogs, setDeletedBlogs] = useState([]);
     const [activeSection, setActiveSection] = useState("welcome"); // "welcome", "edit", "blogs", "following"
     const navigate = useNavigate();
     const [following, setFollowing] = useState([]);
@@ -41,6 +42,20 @@ const ProfilePage = () => {
             }
         };
         if (token) fetchUserBlogs();
+    }, [token]);
+
+    //deleted blogs
+    useEffect(() => {
+        const fetchDeletedBlogs = async () => {
+            const res = await fetch("/user/my_deleted_blogs", {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setDeletedBlogs(data);
+            }
+        };
+        if (token) fetchDeletedBlogs();
     }, [token]);
 
     useEffect(() => {
@@ -127,6 +142,7 @@ const ProfilePage = () => {
             <div className="profile-sidebar">
                 <button onClick={() => setActiveSection("edit")} className={"btn btn-light"}>Edit Profile</button>
                 <button onClick={() => setActiveSection("blogs")} className={"btn btn-light"}>My Blogs</button>
+                <button onClick={() => setActiveSection("deleted")} className="btn btn-light">Deleted Blogs</button>
                 <button onClick={() => setActiveSection("following")} className={"btn btn-light"}>
                     Following Authors
                 </button>
@@ -168,6 +184,17 @@ const ProfilePage = () => {
                     <div>
                         <h2>Your Blogs</h2>
                         <BlogFeed blogs={blogs} showEdit={true} isAdmin={user.is_admin} setBlogs={setBlogs} userId={user?.id} />
+                    </div>
+                )}
+
+                {activeSection === "deleted" && (
+                    <div>
+                        <h2>Deleted Blogs</h2>
+                        {deletedBlogs.length > 0 ? (
+                            <BlogFeed blogs={deletedBlogs} showDeletedInfo={true} />
+                        ) : (
+                            <p>No deleted blogs found.</p>
+                        )}
                     </div>
                 )}
 

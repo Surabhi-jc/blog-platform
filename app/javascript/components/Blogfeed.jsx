@@ -100,7 +100,7 @@ const BlogFeed = ({ blogs,setBlogs, showEdit = false, userId, isAdmin=false, sho
                     onClick={() => navigate(`/blogs/${blog.id}`,{ state: { from: location.pathname } })}
                 >
                     <div className="action-icons">
-                    {showEdit && (
+                    {!showDeletedInfo && showEdit && (
                         <button
                             className="edit-icon"
                             title="Edit blog"
@@ -133,7 +133,7 @@ const BlogFeed = ({ blogs,setBlogs, showEdit = false, userId, isAdmin=false, sho
                             />
                         </button>
                     )}
-                        {showDeletedInfo && (
+                        {showDeletedInfo && isAdmin && (
                             <button
                                 className="restore-icon"
                                 title="Restore blog"
@@ -173,7 +173,7 @@ const BlogFeed = ({ blogs,setBlogs, showEdit = false, userId, isAdmin=false, sho
 
                     {showDeletedInfo && blog.deleted_by && (
                         <p className="deleted-info">
-                            <span className="deleted-by"><strong>Deleted by: </strong>{blog.deleted_by.name}</span>
+                            <span className="deleted-by"><strong>Deleted by: </strong>{blog.deleted_by.is_admin ? "Admin" : blog.deleted_by.name}</span>
                             <span className="deleted-on"><strong>Deleted On: </strong>{new Date(blog.deleted_at).toLocaleString()}</span>
                         </p>
                     )}

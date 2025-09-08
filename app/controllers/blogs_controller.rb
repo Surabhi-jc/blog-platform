@@ -32,27 +32,54 @@ class BlogsController < ApplicationController
 
     def show
       begin
-        blogs = Blog.active
-                    .includes(:user, :tags)
-                    .order(created_at: :desc)
+        limit = (params[:limit] || 10).to_i
+        after = params[:after] # expected "ISO_TIMESTAMP|ID" e.g. "2025-09-03T12:31:40.310Z|185478"
 
-        render json: blogs.map { |blog|
+        scope = Blog.active.includes(:user, :tags).order(created_at: :desc, id: :desc)
+
+        if after.present?
+          time_str, id_str = after.split("|")
+          after_time = Time.parse(time_str) rescue nil
+          after_id = id_str.to_i
+
+          if after_time
+            scope = scope.where(
+              "blogs.created_at < ? OR (blogs.created_at = ? AND blogs.id < ?)",
+              after_time, after_time, after_id
+            )
+          end
+        end
+
+        batch = scope.limit(limit + 1).to_a
+        has_more = batch.size > limit
+        page = batch.first(limit)
+
+        formatted = page.map { |b|
           {
-            id: blog.id,
-            title: blog.title,
-            content: blog.content,
-            author_name: blog.user.name,
-            tags: blog.tags.map(&:name),
-            likes_count: blog.likes_count,
-            comments_count: blog.comments_count,
-            created_at: blog.created_at
+            id: b.id,
+            title: b.title,
+            content: b.content,
+            author_name: b.user.name,
+            tags: b.tags.map(&:name),
+            likes_count: b.likes_count,
+            comments_count: b.comments_count,
+            created_at: b.created_at
           }
-        }, status: :ok
+        }
+
+        next_cursor = nil
+        if page.any?
+          last = page.last
+          next_cursor = "#{last.created_at.iso8601}|#{last.id}"
+        end
+
+        render json: { blogs: formatted, next_cursor: next_cursor, has_more: has_more }, status: :ok
       rescue => e
         Rails.logger.error("Error fetching blogs: #{e.message}")
         render json: { error: "Failed to fetch blogs" }, status: :internal_server_error
       end
     end
+
 
 
     def show_blog
@@ -99,41 +126,79 @@ class BlogsController < ApplicationController
           tags: blog.tags.map(&:name),
           likes_count: blog.likes_count,
           comments_count: blog.comments_count,
-          status: blog.status,
-          scheduled_at: blog.scheduled_at,
-          published_at: blog.published_at,
           created_at: blog.created_at
         }
       }, status: :ok
     end
 
+    # app/controllers/blogs_controller.rb
     def following_blogs
       begin
-        followed_user_ids = @current_user.following.pluck(:id)
+        limit = (params[:limit] || 10).to_i
+        limit = 1 if limit < 1
+        after = params[:after] # expected format "2025-09-05T12:34:56Z|185478" or nil
 
-        blogs = Blog.active
+        followed_user_ids = @current_user.following.pluck(:id)
+        # If user follows nobody, return empty soon
+        if followed_user_ids.empty?
+          return render json: { blogs: [], next_cursor: nil, has_more: false }, status: :ok
+        end
+
+        scope = Blog.active
                     .where(user_id: followed_user_ids)
                     .includes(:user, :tags)
-                    .order(created_at: :desc)
+                    .order(created_at: :desc, id: :desc)
 
-        render json: {
-          blogs: blogs.map { |blog|
-            {
-              id: blog.id,
-              title: blog.title,
-              content: blog.content,
-              author_name: blog.user.name,
-              tags: blog.tags.map(&:name),
-              likes_count: blog.likes_count,
-              comments_count: blog.comments_count,
-              created_at: blog.created_at
-            }
+        # Apply cursor if provided — parse "time|id"
+        if after.present?
+          begin
+            time_str, id_str = after.split("|", 2)
+            cursor_time = Time.iso8601(time_str) rescue nil
+            cursor_id = id_str.to_i
+
+            if cursor_time
+              # Fetch rows strictly older than (cursor_time, cursor_id) in (created_at DESC, id DESC) ordering.
+              scope = scope.where(
+                "blogs.created_at < ? OR (blogs.created_at = ? AND blogs.id < ?)",
+                cursor_time, cursor_time, cursor_id
+              )
+            else
+              Rails.logger.warn("following_blogs: invalid cursor #{after.inspect} - ignoring")
+            end
+          rescue => parse_e
+            Rails.logger.warn("following_blogs: failed to parse cursor #{after.inspect} - #{parse_e.message}")
+          end
+        end
+
+        rows = scope.limit(limit + 1).to_a
+        has_more = rows.length > limit
+        page = rows.first(limit)
+
+        formatted = page.map do |b|
+          {
+            id: b.id,
+            title: b.title,
+            content: b.content,
+            author_name: b.user&.name,
+            tags: b.tags.map(&:name),
+            likes_count: b.likes_count,
+            comments_count: b.comments_count,
+            created_at: b.created_at
           }
-        }, status: :ok
+        end
+
+        next_cursor = if page.any?
+                        last = page.last
+                        "#{last.created_at.utc.iso8601}|#{last.id}"
+                      end
+
+        render json: { blogs: formatted, next_cursor: next_cursor, has_more: has_more }, status: :ok
       rescue => e
-        render json: { error: e.message }, status: :unprocessable_entity
+        Rails.logger.error("Error in following_blogs: #{e.message}\n#{e.backtrace.join("\n")}")
+        render json: { error: "Failed to fetch following blogs" }, status: :internal_server_error
       end
     end
+
 
 
     def update
@@ -209,63 +274,139 @@ class BlogsController < ApplicationController
 
 
     #show user preferred blogs on the top
+    # app/controllers/blogs_controller.rb
+    # app/controllers/blogs_controller.rb
     def prefered_blogs
       begin
-      p_tags = UserTag.where(user_id: @current_user.id).pluck(:tag_id)
+        limit = (params[:limit] || 10).to_i
+        after = params[:after] # expected "priority|ISO_TIMESTAMP|id" or nil
 
-      # Blogs from last 24 hours (recent first, tag-preferred first)
-      recent_blogs = Blog.active
-                         .where("blogs.created_at >= ?", 1.day.ago)
-                         .left_joins(:tags)
+        user_id = @current_user.id
+        one_day_ago = 1.day.ago.utc
+        one_day_ago_iso = one_day_ago.iso8601
+
+        # CASE expression: 1..4 priority, using a subquery for user's tag ids
+        # Note: we cast the ISO timestamp to timestamptz in SQL to be explicit
+        case_sql = <<~SQL.squish
+      CASE
+        WHEN blogs.created_at >= '#{one_day_ago_iso}'::timestamptz
+             AND EXISTS (
+               SELECT 1 FROM blog_tags bt WHERE bt.blog_id = blogs.id
+               AND bt.tag_id IN (SELECT tag_id FROM user_tags WHERE user_id = #{user_id})
+             ) THEN 1
+        WHEN blogs.created_at >= '#{one_day_ago_iso}'::timestamptz THEN 2
+        WHEN EXISTS (
+               SELECT 1 FROM blog_tags bt WHERE bt.blog_id = blogs.id
+               AND bt.tag_id IN (SELECT tag_id FROM user_tags WHERE user_id = #{user_id})
+             ) THEN 3
+        ELSE 4
+      END
+    SQL
+
+        base_scope = Blog.active
+                         .left_joins(:tags) # safe: allows the EXISTS and distinct
+                         .select("blogs.*, (#{case_sql}) AS priority")
                          .distinct
                          .includes(:user, :tags)
-                         .order("blogs.created_at DESC")
 
-      # Within recent_blogs, reorder so that matching tags are prioritized
-      recent_preferred = recent_blogs.select { |b| (b.tags.pluck(:id) & p_tags).any? }
-      recent_others    = recent_blogs.reject { |b| (b.tags.pluck(:id) & p_tags).any? }
+        # Apply compound cursor if provided: "priority|created_at_iso|id"
+        if after.present?
+          begin
+            pr_str, created_at_str, id_str = after.split("|", 3)
+            cursor_priority = pr_str.to_i
+            cursor_time = Time.iso8601(created_at_str) rescue nil
+            cursor_id = id_str.to_i
 
-      # Older blogs
-      p_blogs = Blog.active
-                    .where("blogs.created_at < ?", 1.day.ago)
-                    .joins(:tags)
-                    .where(tags: { id: p_tags })
-                    .distinct
-                    .includes(:user, :tags)
-                    .order("blogs.created_at DESC")
+            if cursor_time
+              # Build WHERE that asks for rows strictly AFTER the cursor position
+              # in ordering (priority ASC, created_at DESC, id DESC).
+              where_sql = <<~SQL.squish
+            (
+              (#{case_sql}) > :cursor_priority
+            )
+            OR (
+              (#{case_sql}) = :cursor_priority
+              AND (blogs.created_at < :cursor_time OR (blogs.created_at = :cursor_time AND blogs.id < :cursor_id))
+            )
+          SQL
 
-      other_blogs = Blog.active
-                        .where("blogs.created_at < ?", 1.day.ago)
-                        .where.not(id: p_blogs.map(&:id))
-                        .includes(:user, :tags)
-                        .order(created_at: :desc)
+              base_scope = base_scope.where(
+                where_sql,
+                cursor_priority: cursor_priority,
+                cursor_time: cursor_time,
+                cursor_id: cursor_id
+              )
+            else
+              Rails.logger.warn("prefered_blogs: invalid cursor timestamp '#{created_at_str}', ignoring cursor")
+            end
+          rescue => parse_e
+            Rails.logger.warn("prefered_blogs: failed to parse cursor #{after.inspect} — #{parse_e.message}")
+            # ignore cursor and return first page
+          end
+        end
 
-      # Final merge:
-      blogs = recent_preferred + recent_others + p_blogs + other_blogs
+        # final ordering and fetch one extra row for has_more
+        rows = base_scope.order("priority ASC, blogs.created_at DESC, blogs.id DESC")
+                         .limit(limit + 1)
+                         .to_a
 
-      formatted_blogs = blogs.map do |blog|
+        has_more = rows.length > limit
+        page = rows.first(limit)
+
+        formatted = page.map do |b|
+          {
+            id: b.id,
+            title: b.title,
+            content: b.content,
+            author_name: b.user&.name,
+            tags: b.tags.map(&:name),
+            likes_count: b.likes_count,
+            comments_count: b.comments_count,
+            created_at: b.created_at,
+            priority: (b.respond_to?(:priority) ? b.priority.to_i : nil)
+          }
+        end
+
+        next_cursor = nil
+        if page.any?
+          last = page.last
+          next_cursor = "#{last.priority.to_i}|#{last.created_at.utc.iso8601}|#{last.id}"
+        end
+
+        render json: { blogs: formatted, next_cursor: next_cursor, has_more: has_more }, status: :ok
+      rescue => e
+        Rails.logger.error("Error fetching preferred blogs: #{e.message}\n#{e.backtrace.join("\n")}")
+        render json: { error: "Failed to fetch preferred blogs" }, status: :internal_server_error
+      end
+    end
+
+    def my_deleted_blogs
+      blogs = @current_user.blogs
+                           .where.not(deleted_at: nil)
+                           .includes(:user, :deleted_by, :tags)
+
+      formatted = blogs.map do |b|
         {
-          id: blog.id,
-          title: blog.title,
-          content: blog.content,
-          author_name: blog.user.name,
-          tags: blog.tags.map(&:name),
-          likes_count: blog.likes_count,
-          comments_count: blog.comments_count,
-          created_at: blog.created_at
+          id: b.id,
+          title: b.title,
+          content: b.content,
+          author_name: b.user&.name,  # add this
+          tags: b.tags.map(&:name),
+          likes_count: b.likes_count,
+          comments_count: b.comments_count,
+          deleted_at: b.deleted_at,
+          deleted_by: b.deleted_by&.as_json(only: [:id, :name, :is_admin])
         }
       end
-      response = { blogs: formatted_blogs }
-      status = :ok
 
-      render json: response, status: status
-
+      render json: formatted, status: :ok
     rescue => e
-      Rails.logger.error("Error fetching preferred blogs: #{e.message}")
-      render json: { error: "Failed to fetch preferred blogs" }, status: :internal_server_error
+      render json: { error: "Failed to fetch deleted blogs", details: e.message }, status: :internal_server_error
     end
 
-    end
+
+
+
 
 
     def is_liked
