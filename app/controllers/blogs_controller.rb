@@ -276,63 +276,101 @@ class BlogsController < ApplicationController
     #show user preferred blogs on the top
     # app/controllers/blogs_controller.rb
     # app/controllers/blogs_controller.rb
+    # controllers/blogs_controller.rb
     def prefered_blogs
       limit = (params[:limit] || 10).to_i
-      after = params[:after]
+      after = params[:after] # "priority|ISO_TIMESTAMP|id" or nil
       user_id = @current_user.id
       one_day_ago_iso = 1.day.ago.utc.iso8601
 
+      conn = ActiveRecord::Base.connection
+
+      # CASE expression for priority (uses alias 'b' inside inner select)
       case_sql = <<~SQL.squish
     CASE
-      WHEN blogs.created_at >= '#{one_day_ago_iso}'::timestamptz
+      WHEN b.created_at >= #{conn.quote(one_day_ago_iso)}::timestamptz
            AND EXISTS (
-             SELECT 1 FROM blog_tags bt
+             SELECT 1
+             FROM blog_tags bt
              JOIN user_tags ut ON ut.tag_id = bt.tag_id
-             WHERE bt.blog_id = blogs.id AND ut.user_id = #{user_id}
+             WHERE bt.blog_id = b.id AND ut.user_id = #{user_id}
            ) THEN 1
-      WHEN blogs.created_at >= '#{one_day_ago_iso}'::timestamptz THEN 2
+      WHEN b.created_at >= #{conn.quote(one_day_ago_iso)}::timestamptz THEN 2
       WHEN EXISTS (
-             SELECT 1 FROM blog_tags bt
+             SELECT 1
+             FROM blog_tags bt
              JOIN user_tags ut ON ut.tag_id = bt.tag_id
-             WHERE bt.blog_id = blogs.id AND ut.user_id = #{user_id}
+             WHERE bt.blog_id = b.id AND ut.user_id = #{user_id}
            ) THEN 3
       ELSE 4
     END
   SQL
 
-      prioritized = Blog.active
-                        .select("blogs.*, (#{case_sql}) AS priority")
+      # Inner subquery: compute priority per blog but select only small columns (id, created_at, priority)
+      inner_sql = <<~SQL
+    SELECT b.id, b.created_at, (#{case_sql})::int AS priority
+    FROM blogs b
+    WHERE b.deleted_at IS NULL
+  SQL
 
+      # Build cursor WHERE clause safely (if client provided `after`)
+      where_clause = ""
       if after.present?
         pr_str, created_at_str, id_str = after.split("|", 3)
         cursor_priority = pr_str.to_i
-        cursor_time = Time.iso8601(created_at_str) rescue nil
+        cursor_time = begin
+                        Time.iso8601(created_at_str)
+                      rescue
+                        nil
+                      end
         cursor_id = id_str.to_i
 
         if cursor_time
-          prioritized = prioritized.where(<<-SQL, cursor_priority: cursor_priority, cursor_time: cursor_time, cursor_id: cursor_id)
-        (priority > :cursor_priority)
-        OR (
-          priority = :cursor_priority
-          AND (created_at < :cursor_time OR (created_at = :cursor_time AND id < :cursor_id))
+          # quote timestamp to be safe, and cast to timestamptz
+          q_time = conn.quote(cursor_time.utc.iso8601) + "::timestamptz"
+          q_priority = cursor_priority
+          q_id = cursor_id
+
+          where_clause = <<~SQL.squish
+        WHERE (
+          (priority > #{q_priority})
+          OR (
+            priority = #{q_priority}
+            AND (created_at < #{q_time} OR (created_at = #{q_time} AND id < #{q_id}))
+          )
         )
       SQL
         end
       end
 
-      rows = prioritized
-               .order("priority ASC, created_at DESC, id DESC")
-               .limit(limit + 1)
-               .includes(:user)
-               .to_a
+      # Final SQL: pick ids + priority ordered by priority, created_at, id
+      final_sql = <<~SQL
+    SELECT p.id, p.created_at, p.priority
+    FROM (#{inner_sql}) AS p
+    #{where_clause}
+    ORDER BY p.priority ASC, p.created_at DESC, p.id DESC
+    LIMIT #{limit + 1}
+  SQL
 
+      rows = conn.exec_query(final_sql).to_a
+      ids_in_order = rows.map { |r| r["id"] }
+
+      # Fetch ActiveRecord blog objects for the page (preload associations)
+      blogs_map = {}
+      if ids_in_order.any?
+        # fetch all returned ids (we fetched limit+1), then reorder
+        records = Blog.where(id: ids_in_order).includes(:user, :tags)
+        blogs_map = records.index_by(&:id)
+      end
+
+      ordered = ids_in_order.map { |id| blogs_map[id] }.compact
       has_more = rows.length > limit
-      page = rows.first(limit)
+      page_blogs = ordered.first(limit)
 
-      # Preload tags only for the returned page (no join explosion)
-      ActiveRecord::Associations::Preloader.new(records: page, associations: :tags).call
+      # Build a map from id -> priority (from SQL rows)
+      priority_map = rows.each_with_object({}) { |r, h| h[r["id"]] = r["priority"].to_i }
 
-      formatted = page.map do |b|
+      formatted = page_blogs.map do |b|
         {
           id: b.id,
           title: b.title,
@@ -342,17 +380,30 @@ class BlogsController < ApplicationController
           likes_count: b.likes_count,
           comments_count: b.comments_count,
           created_at: b.created_at,
-          priority: b.try(:priority).to_i
+          priority: priority_map[b.id] || 4
         }
       end
 
-      next_cursor = if page.any?
-                      last = page.last
-                      "#{last.priority.to_i}|#{last.created_at.utc.iso8601}|#{last.id}"
-                    end
+      next_cursor = nil
+      if page_blogs.any?
+        last_row = rows[page_blogs.length - 1] || rows.last
+        # created_at from row might be a string or Time — normalize
+        created_at_val = last_row["created_at"]
+        created_at_iso = if created_at_val.respond_to?(:utc)
+                           created_at_val.utc.iso8601
+                         else
+                           Time.parse(created_at_val.to_s).utc.iso8601
+                         end
+
+        next_cursor = "#{last_row['priority'].to_i}|#{created_at_iso}|#{last_row['id']}"
+      end
 
       render json: { blogs: formatted, next_cursor: next_cursor, has_more: has_more }, status: :ok
+    rescue => e
+      Rails.logger.error("prefered_blogs error: #{e.class} #{e.message}\n#{e.backtrace.take(12).join("\n")}")
+      render json: { error: "Failed to fetch blogs" }, status: :internal_server_error
     end
+
 
 
 
