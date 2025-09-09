@@ -278,11 +278,10 @@ class BlogsController < ApplicationController
     # app/controllers/blogs_controller.rb
     def prefered_blogs
       limit = (params[:limit] || 10).to_i
-      after = params[:after] # "priority|ISO_TIMESTAMP|id" or nil
+      after = params[:after]
       user_id = @current_user.id
       one_day_ago_iso = 1.day.ago.utc.iso8601
 
-      # CASE SQL using EXISTS (join to user_tags inside the EXISTS)
       case_sql = <<~SQL.squish
     CASE
       WHEN blogs.created_at >= '#{one_day_ago_iso}'::timestamptz
@@ -301,15 +300,9 @@ class BlogsController < ApplicationController
     END
   SQL
 
-      # Build a derived table that computes priority ONCE per blog
-      subquery_sql = Blog.active
-                         .select("blogs.*, (#{case_sql}) AS priority")
-                         .to_sql
+      prioritized = Blog.active
+                        .select("blogs.*, (#{case_sql}) AS priority")
 
-      # Treat that derived SQL as a table "prioritized"
-      prioritized = Blog.from("(#{subquery_sql}) AS prioritized")
-
-      # Apply cursor filtering on the computed priority column (no re-eval)
       if after.present?
         pr_str, created_at_str, id_str = after.split("|", 3)
         cursor_priority = pr_str.to_i
@@ -330,13 +323,12 @@ class BlogsController < ApplicationController
       rows = prioritized
                .order("priority ASC, created_at DESC, id DESC")
                .limit(limit + 1)
-               .includes(:user)  # load user along with rows to avoid N+1 for author_name
+               .includes(:user)
                .to_a
 
       has_more = rows.length > limit
       page = rows.first(limit)
 
-      # Preload tags only for the returned page (no join explosion)
       ActiveRecord::Associations::Preloader.new.preload(page, :tags)
 
       formatted = page.map do |b|
@@ -349,7 +341,7 @@ class BlogsController < ApplicationController
           likes_count: b.likes_count,
           comments_count: b.comments_count,
           created_at: b.created_at,
-          priority: (b.respond_to?(:priority) ? b.priority.to_i : nil)
+          priority: b.try(:priority).to_i
         }
       end
 
@@ -360,6 +352,7 @@ class BlogsController < ApplicationController
 
       render json: { blogs: formatted, next_cursor: next_cursor, has_more: has_more }, status: :ok
     end
+
 
 
     def my_deleted_blogs
