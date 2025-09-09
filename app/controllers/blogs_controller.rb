@@ -277,108 +277,90 @@ class BlogsController < ApplicationController
     # app/controllers/blogs_controller.rb
     # app/controllers/blogs_controller.rb
     def prefered_blogs
-      begin
-        limit = (params[:limit] || 10).to_i
-        after = params[:after] # expected "priority|ISO_TIMESTAMP|id" or nil
+      limit = (params[:limit] || 10).to_i
+      after = params[:after] # "priority|ISO_TIMESTAMP|id" or nil
+      user_id = @current_user.id
+      one_day_ago_iso = 1.day.ago.utc.iso8601
 
-        user_id = @current_user.id
-        one_day_ago = 1.day.ago.utc
-        one_day_ago_iso = one_day_ago.iso8601
+      # CASE SQL using EXISTS (join to user_tags inside the EXISTS)
+      case_sql = <<~SQL.squish
+    CASE
+      WHEN blogs.created_at >= '#{one_day_ago_iso}'::timestamptz
+           AND EXISTS (
+             SELECT 1 FROM blog_tags bt
+             JOIN user_tags ut ON ut.tag_id = bt.tag_id
+             WHERE bt.blog_id = blogs.id AND ut.user_id = #{user_id}
+           ) THEN 1
+      WHEN blogs.created_at >= '#{one_day_ago_iso}'::timestamptz THEN 2
+      WHEN EXISTS (
+             SELECT 1 FROM blog_tags bt
+             JOIN user_tags ut ON ut.tag_id = bt.tag_id
+             WHERE bt.blog_id = blogs.id AND ut.user_id = #{user_id}
+           ) THEN 3
+      ELSE 4
+    END
+  SQL
 
-        # CASE expression: 1..4 priority, using a subquery for user's tag ids
-        # Note: we cast the ISO timestamp to timestamptz in SQL to be explicit
-        case_sql = <<~SQL.squish
-      CASE
-        WHEN blogs.created_at >= '#{one_day_ago_iso}'::timestamptz
-             AND EXISTS (
-               SELECT 1 FROM blog_tags bt WHERE bt.blog_id = blogs.id
-               AND bt.tag_id IN (SELECT tag_id FROM user_tags WHERE user_id = #{user_id})
-             ) THEN 1
-        WHEN blogs.created_at >= '#{one_day_ago_iso}'::timestamptz THEN 2
-        WHEN EXISTS (
-               SELECT 1 FROM blog_tags bt WHERE bt.blog_id = blogs.id
-               AND bt.tag_id IN (SELECT tag_id FROM user_tags WHERE user_id = #{user_id})
-             ) THEN 3
-        ELSE 4
-      END
-    SQL
-
-        base_scope = Blog.active
-                         .left_joins(:tags) # safe: allows the EXISTS and distinct
+      # Build a derived table that computes priority ONCE per blog
+      subquery_sql = Blog.active
                          .select("blogs.*, (#{case_sql}) AS priority")
-                         .distinct
-                         .includes(:user, :tags)
+                         .to_sql
 
-        # Apply compound cursor if provided: "priority|created_at_iso|id"
-        if after.present?
-          begin
-            pr_str, created_at_str, id_str = after.split("|", 3)
-            cursor_priority = pr_str.to_i
-            cursor_time = Time.iso8601(created_at_str) rescue nil
-            cursor_id = id_str.to_i
+      # Treat that derived SQL as a table "prioritized"
+      prioritized = Blog.from("(#{subquery_sql}) AS prioritized")
 
-            if cursor_time
-              # Build WHERE that asks for rows strictly AFTER the cursor position
-              # in ordering (priority ASC, created_at DESC, id DESC).
-              where_sql = <<~SQL.squish
-            (
-              (#{case_sql}) > :cursor_priority
-            )
-            OR (
-              (#{case_sql}) = :cursor_priority
-              AND (blogs.created_at < :cursor_time OR (blogs.created_at = :cursor_time AND blogs.id < :cursor_id))
-            )
-          SQL
+      # Apply cursor filtering on the computed priority column (no re-eval)
+      if after.present?
+        pr_str, created_at_str, id_str = after.split("|", 3)
+        cursor_priority = pr_str.to_i
+        cursor_time = Time.iso8601(created_at_str) rescue nil
+        cursor_id = id_str.to_i
 
-              base_scope = base_scope.where(
-                where_sql,
-                cursor_priority: cursor_priority,
-                cursor_time: cursor_time,
-                cursor_id: cursor_id
-              )
-            else
-              Rails.logger.warn("prefered_blogs: invalid cursor timestamp '#{created_at_str}', ignoring cursor")
-            end
-          rescue => parse_e
-            Rails.logger.warn("prefered_blogs: failed to parse cursor #{after.inspect} — #{parse_e.message}")
-            # ignore cursor and return first page
-          end
+        if cursor_time
+          prioritized = prioritized.where(<<-SQL, cursor_priority: cursor_priority, cursor_time: cursor_time, cursor_id: cursor_id)
+        (priority > :cursor_priority)
+        OR (
+          priority = :cursor_priority
+          AND (created_at < :cursor_time OR (created_at = :cursor_time AND id < :cursor_id))
+        )
+      SQL
         end
-
-        # final ordering and fetch one extra row for has_more
-        rows = base_scope.order("priority ASC, blogs.created_at DESC, blogs.id DESC")
-                         .limit(limit + 1)
-                         .to_a
-
-        has_more = rows.length > limit
-        page = rows.first(limit)
-
-        formatted = page.map do |b|
-          {
-            id: b.id,
-            title: b.title,
-            content: b.content,
-            author_name: b.user&.name,
-            tags: b.tags.map(&:name),
-            likes_count: b.likes_count,
-            comments_count: b.comments_count,
-            created_at: b.created_at,
-            priority: (b.respond_to?(:priority) ? b.priority.to_i : nil)
-          }
-        end
-
-        next_cursor = nil
-        if page.any?
-          last = page.last
-          next_cursor = "#{last.priority.to_i}|#{last.created_at.utc.iso8601}|#{last.id}"
-        end
-
-        render json: { blogs: formatted, next_cursor: next_cursor, has_more: has_more }, status: :ok
-      rescue => e
-        Rails.logger.error("Error fetching preferred blogs: #{e.message}\n#{e.backtrace.join("\n")}")
-        render json: { error: "Failed to fetch preferred blogs" }, status: :internal_server_error
       end
+
+      rows = prioritized
+               .order("priority ASC, created_at DESC, id DESC")
+               .limit(limit + 1)
+               .includes(:user)  # load user along with rows to avoid N+1 for author_name
+               .to_a
+
+      has_more = rows.length > limit
+      page = rows.first(limit)
+
+      # Preload tags only for the returned page (no join explosion)
+      ActiveRecord::Associations::Preloader.new.preload(page, :tags)
+
+      formatted = page.map do |b|
+        {
+          id: b.id,
+          title: b.title,
+          content: b.content,
+          author_name: b.user&.name,
+          tags: b.tags.map(&:name),
+          likes_count: b.likes_count,
+          comments_count: b.comments_count,
+          created_at: b.created_at,
+          priority: (b.respond_to?(:priority) ? b.priority.to_i : nil)
+        }
+      end
+
+      next_cursor = if page.any?
+                      last = page.last
+                      "#{last.priority.to_i}|#{last.created_at.utc.iso8601}|#{last.id}"
+                    end
+
+      render json: { blogs: formatted, next_cursor: next_cursor, has_more: has_more }, status: :ok
     end
+
 
     def my_deleted_blogs
       blogs = @current_user.blogs
