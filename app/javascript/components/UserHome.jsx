@@ -131,7 +131,8 @@ const PreferredBlogs = ({ user }) => {
             </ul>
 
             {error && <p className="text-danger text-center">{error}</p>}
-            <BlogFeed blogs={blogs} setBlogs={setBlogs} showEdit={false} />
+            <BlogFeed blogs={blogs} setBlogs={setBlogs} showEdit={true} userId={user ? user.id : null}
+                      isAdmin={user ? user.is_admin : false}/>
 
             <div ref={loadMoreRef} style={{ height: 60, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {loading && <p>Loading more blogs...</p>}

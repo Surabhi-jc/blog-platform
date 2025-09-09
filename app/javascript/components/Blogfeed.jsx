@@ -9,6 +9,7 @@ const BlogFeed = ({ blogs,setBlogs, showEdit = false, userId, isAdmin=false, sho
     const token = localStorage.getItem("token");
 
 
+
     if (blogs === null) {
         // Blogs not loaded yet
         return <p>Loading blogs..please wait</p>;
@@ -100,7 +101,8 @@ const BlogFeed = ({ blogs,setBlogs, showEdit = false, userId, isAdmin=false, sho
                     onClick={() => navigate(`/blogs/${blog.id}`,{ state: { from: location.pathname } })}
                 >
                     <div className="action-icons">
-                    {!showDeletedInfo && showEdit && (
+                       {!showDeletedInfo && showEdit && userId && userId === blog.user_id && (
+
                         <button
                             className="edit-icon"
                             title="Edit blog"

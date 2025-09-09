@@ -376,6 +376,7 @@ class BlogsController < ApplicationController
           title: b.title,
           content: b.content,
           author_name: b.user&.name,
+          user_id: b.user.id,
           tags: b.tags.map(&:name),
           likes_count: b.likes_count,
           comments_count: b.comments_count,
