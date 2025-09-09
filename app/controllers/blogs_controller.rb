@@ -329,7 +329,8 @@ class BlogsController < ApplicationController
       has_more = rows.length > limit
       page = rows.first(limit)
 
-      ActiveRecord::Associations::Preloader.new.preload(page, :tags)
+      # Preload tags only for the returned page (no join explosion)
+      ActiveRecord::Associations::Preloader.new(records: page, associations: :tags).call
 
       formatted = page.map do |b|
         {

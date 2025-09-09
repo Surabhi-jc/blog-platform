@@ -104,7 +104,7 @@ const CreateBlogPage = () => {
             });
 
             if(response.ok) {
-                navigate('/profile');
+                navigate('/blogs/prefered_blogs');
             } else {
                 const errorData = await response.json();
                 setError(errorData.message||'Failed to create blog');
