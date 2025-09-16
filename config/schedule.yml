@@ -8,7 +8,7 @@ update_comment_count:
   cron: "*/4 * * * *"
   class: "UpdateCommentsCountWorker"
   queue: default
-  retry: 3
+
 
 #blog_publisher:
  # cron: "* * * * *"   # every minute

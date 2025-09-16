@@ -1,22 +1,35 @@
-# app/workers/update_comment_count_worker.rb
+# app/workers/update_comments_count_worker.rb
 class UpdateCommentsCountWorker
   include Sidekiq::Worker
-  sidekiq_options queue: :default, retry: 3
+  sidekiq_options queue: :default
 
   def perform
-    # counts for blogs that have parent comments
-    counts = Comment.where(parent_comment_id: nil, deleted_at: nil).group(:blog_id).count
+    counts = Comment
+               .where(parent_comment_id: nil, deleted_at: nil)
+               .group(:blog_id)
+               .count
 
-    # Update blogs that have parent comments
-    counts.each do |blog_id, ct|
-      Blog.where(id: blog_id).update_all(comments_count: ct)
+    update_changed_counts(counts)
+    reset_zero_counts(counts)
+  end
+
+  private
+
+  def update_changed_counts(counts)
+    counts.each do |blog_id, actual_count|
+      blog = Blog.find_by(id: blog_id)
+      next unless blog
+      if blog.comments_count != actual_count
+        blog.update(comments_count: actual_count)
+      end
     end
+  end
 
-    # comments_count = 0, for blogs that have zero parent comments
-    if counts.any?
-      Blog.where.not(id: counts.keys).update_all(comments_count: 0)
-    else
-      Blog.update_all(comments_count: 0)
+  def reset_zero_counts(counts)
+    Blog.where.not(id: counts.keys)
+        .where.not(comments_count: 0)
+        .find_each do |blog|
+      blog.update(comments_count: 0)
     end
   end
 end

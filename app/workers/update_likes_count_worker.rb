@@ -1,23 +1,34 @@
 # app/workers/update_likes_count_worker.rb
 class UpdateLikesCountWorker
   include Sidekiq::Worker
-  sidekiq_options queue: :default, retry: 3
-
+  sidekiq_options queue: :default
 
   def perform
-    #Compute counts for blogs that have likes (one DB query)
     counts = Like.group(:blog_id).count
 
-    #Update blogs that have likes (bulk updates)
-    counts.each do |blog_id, ct|
-      Blog.where(id: blog_id).update_all(likes_count: ct)
-    end
+    update_changed_counts(counts)
+    reset_zero_counts(counts)
 
-    #For blogs that have zero likes, set likes_count = 0.
-    if counts.any?
-      Blog.where.not(id: counts.keys).update_all(likes_count: 0)
-    else
-      Blog.update_all(likes_count: 0)
+    Rails.logger.info "[UpdateLikesCountWorker] Updated likes counts."
+  end
+
+  private
+
+  def update_changed_counts(counts)
+    counts.each do |blog_id, actual_count|
+      blog = Blog.find_by(id: blog_id)
+      next unless blog
+      if blog.likes_count != actual_count
+        blog.update(likes_count: actual_count)
+      end
+    end
+  end
+
+  def reset_zero_counts(counts)
+    Blog.where.not(id: counts.keys)
+        .where.not(likes_count: 0)
+        .find_each do |blog|
+      blog.update(likes_count: 0)
     end
   end
 end
