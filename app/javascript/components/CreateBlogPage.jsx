@@ -13,7 +13,7 @@ const CreateBlogPage = () => {
     const [availableTags, setAvailableTags] = useState([]);
     const [selectedTags, setSelectedTags] = useState([]);
     const [dropdownOpen, setDropdownOpen] = useState(false);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(!!id);
     const [currentUserId, setCurrentUserId] = useState(null);
 
     const token= localStorage.getItem('token');
@@ -114,8 +114,13 @@ const CreateBlogPage = () => {
             setError('Error occurred while creating a blog');
         }
     }
+    if (currentUserId === null && token) {
+        return <p>Loading user...</p>;
+    }
 
-    if (loading) return <p>Loading blog data...</p>;
+    if (loading) return <div className="loader_container">
+        <div className="spinner"></div>
+    </div>;
 
     if (error === "You are not authorized to edit this blog.") {
         return (
