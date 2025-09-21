@@ -10,6 +10,4 @@ update_comment_count:
   queue: default
 
 
-#blog_publisher:
- # cron: "* * * * *"   # every minute
-  #class: "BlogPublisherWorker"
+

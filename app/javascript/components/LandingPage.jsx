@@ -9,7 +9,7 @@ const LandingPage = () => {
     const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(false);
 
-    // refs to avoid race conditions / stale closures
+
     const loadingRef = useRef(false);
     const hasMoreRef = useRef(true);
     const loadMoreRef = useRef(null);
@@ -66,7 +66,6 @@ const LandingPage = () => {
     // initial load
     useEffect(() => {
         fetchBlogs();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // IntersectionObserver to load more when sentinel is near viewport
