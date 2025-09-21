@@ -277,100 +277,94 @@ class BlogsController < ApplicationController
     # app/controllers/blogs_controller.rb
     # app/controllers/blogs_controller.rb
     # controllers/blogs_controller.rb
+    # inside BlogsController
     def prefered_blogs
-      limit = (params[:limit] || 10).to_i
-      after = params[:after] # "priority|ISO_TIMESTAMP|id" or nil
+      limit   = (params[:limit] || 10).to_i
+      after   = normalize_after(params[:after])
       user_id = @current_user.id
-      one_day_ago_iso = 1.day.ago.utc.iso8601
 
-      conn = ActiveRecord::Base.connection
+      cache_key     = "user:#{user_id}:preferred_blogs"
+      tag_cache_key = "user:#{user_id}:tag_ids"
 
-      # CASE expression for priority (uses alias 'b' inside inner select)
-      case_sql = <<~SQL.squish
-    CASE
-      WHEN b.created_at >= #{conn.quote(one_day_ago_iso)}::timestamptz
-           AND EXISTS (
-             SELECT 1
-             FROM blog_tags bt
-             JOIN user_tags ut ON ut.tag_id = bt.tag_id
-             WHERE bt.blog_id = b.id AND ut.user_id = #{user_id}
-           ) THEN 1
-      WHEN b.created_at >= #{conn.quote(one_day_ago_iso)}::timestamptz THEN 2
-      WHEN EXISTS (
-             SELECT 1
-             FROM blog_tags bt
-             JOIN user_tags ut ON ut.tag_id = bt.tag_id
-             WHERE bt.blog_id = b.id AND ut.user_id = #{user_id}
-           ) THEN 3
-      ELSE 4
-    END
-  SQL
+      user_tag_ids = fetch_user_tags(user_id, tag_cache_key)
+      cached_rows  = fetch_cached_rows(cache_key)
 
-      # Inner subquery: compute priority per blog but select only small columns (id, created_at, priority)
-      inner_sql = <<~SQL
-    SELECT b.id, b.created_at, (#{case_sql})::int AS priority
-    FROM blogs b
-    WHERE b.deleted_at IS NULL
-  SQL
-
-      # Build cursor WHERE clause safely (if client provided `after`)
-      where_clause = ""
-      if after.present?
-        pr_str, created_at_str, id_str = after.split("|", 3)
-        cursor_priority = pr_str.to_i
-        cursor_time = begin
-                        Time.iso8601(created_at_str)
-                      rescue
-                        nil
-                      end
-        cursor_id = id_str.to_i
-
-        if cursor_time
-          # quote timestamp to be safe, and cast to timestamptz
-          q_time = conn.quote(cursor_time.utc.iso8601) + "::timestamptz"
-          q_priority = cursor_priority
-          q_id = cursor_id
-
-          where_clause = <<~SQL.squish
-        WHERE (
-          (priority > #{q_priority})
-          OR (
-            priority = #{q_priority}
-            AND (created_at < #{q_time} OR (created_at = #{q_time} AND id < #{q_id}))
-          )
-        )
-      SQL
+      if after.nil?
+        if cached_rows.present?
+          Rails.logger.info("[prefered_blogs] served from cache top_rows=#{cached_rows.length}")
+          blogs, next_cursor, has_more = format_blogs_response(cached_rows, limit)
+          return render json: { blogs: blogs, next_cursor: next_cursor, has_more: has_more }, status: :ok
         end
+
+        # cache miss for first page: compute top-100, cache it, and serve
+        top_rows = PreferedBlogsFallback.fetch_top_rows(tag_ids: user_tag_ids)
+        top_rows ||= []
+        $redis.setex(cache_key, 300, top_rows.to_json) if top_rows.present?
+        Rails.logger.info("[prefered_blogs] cache_miss computed_and_cached top_rows=#{top_rows.length}")
+        blogs, next_cursor, has_more = format_blogs_response(top_rows, limit)
+        return render json: { blogs: blogs, next_cursor: next_cursor, has_more: has_more }, status: :ok
       end
 
-      # Final SQL: pick ids + priority ordered by priority, created_at, id
-      final_sql = <<~SQL
-    SELECT p.id, p.created_at, p.priority
-    FROM (#{inner_sql}) AS p
-    #{where_clause}
-    ORDER BY p.priority ASC, p.created_at DESC, p.id DESC
-    LIMIT #{limit + 1}
-  SQL
+      # after present -> try to use cached slice (if cached_rows supplied) else DB fallback
+      source_rows, used_cache = PreferedBlogsFallback.fetch(
+        user_id: user_id,
+        limit: limit,
+        after: after,
+        tag_ids: user_tag_ids,
+        cached_rows: cached_rows
+      )
+      source_rows ||= []
 
-      rows = conn.exec_query(final_sql).to_a
-      ids_in_order = rows.map { |r| r["id"] }
+      Rails.logger.info("[prefered_blogs] fetched rows_count=#{source_rows.length} used_cache=#{used_cache}")
+      blogs, next_cursor, has_more = format_blogs_response(source_rows, limit)
+      render json: { blogs: blogs, next_cursor: next_cursor, has_more: has_more }, status: :ok
+    rescue => e
+      Rails.logger.error("[prefered_blogs] #{e.class}: #{e.message}\n#{e.backtrace.take(10).join("\n")}")
+      render json: { error: "Failed to fetch blogs" }, status: :internal_server_error
+    end
 
-      # Fetch ActiveRecord blog objects for the page (preload associations)
-      blogs_map = {}
-      if ids_in_order.any?
-        # fetch all returned ids (we fetched limit+1), then reorder
-        records = Blog.where(id: ids_in_order).includes(:user, :tags)
-        blogs_map = records.index_by(&:id)
+
+    private
+
+    def normalize_after(raw)
+      return nil if raw.nil?
+      s = raw.to_s.strip
+      return nil if s.empty? || s.downcase == "null" || s.downcase == "undefined"
+      s
+    end
+
+    def fetch_user_tags(user_id, tag_cache_key)
+      if (j = $redis.get(tag_cache_key))
+        JSON.parse(j)
+      else
+        ids = UserTag.where(user_id: user_id).pluck(:tag_id)
+        $redis.setex(tag_cache_key, 300, ids.to_json)
+        ids
       end
+    end
 
-      ordered = ids_in_order.map { |id| blogs_map[id] }.compact
-      has_more = rows.length > limit
-      page_blogs = ordered.first(limit)
+    def fetch_cached_rows(cache_key)
+      if (j = $redis.get(cache_key))
+        Rails.logger.info("[prefered_blogs] cache hit: #{cache_key}, size=#{j.bytesize}")
+        JSON.parse(j).map { |r| r.transform_keys(&:to_s) }
+      else
+        Rails.logger.info("[prefered_blogs] cache miss: #{cache_key}")
+        nil
+      end
+    end
 
-      # Build a map from id -> priority (from SQL rows)
-      priority_map = rows.each_with_object({}) { |r, h| h[r["id"]] = r["priority"].to_i }
+    def format_blogs_response(source_rows, limit)
+      has_more = source_rows.length > limit
+      page_rows = source_rows.first(limit)
+      ids = page_rows.map { |r| r["id"] }
 
-      formatted = page_blogs.map do |b|
+      records = ids.any? ? Blog.where(id: ids).includes(:user, :tags) : []
+      map = records.index_by(&:id)
+      priority_map = source_rows.each_with_object({}) { |r, h| h[r["id"]] = r["priority"].to_i }
+
+      blogs = ids.map do |id|
+        b = map[id]
+        next unless b
         {
           id: b.id,
           title: b.title,
@@ -383,26 +377,20 @@ class BlogsController < ApplicationController
           created_at: b.created_at,
           priority: priority_map[b.id] || 4
         }
-      end
+      end.compact
 
-      next_cursor = nil
-      if page_blogs.any?
-        last_row = rows[page_blogs.length - 1] || rows.last
-        # created_at from row might be a string or Time — normalize
-        created_at_val = last_row["created_at"]
-        created_at_iso = if created_at_val.respond_to?(:utc)
-                           created_at_val.utc.iso8601
-                         else
-                           Time.parse(created_at_val.to_s).utc.iso8601
-                         end
+      next_cursor = build_next_cursor(page_rows)
 
-        next_cursor = "#{last_row['priority'].to_i}|#{created_at_iso}|#{last_row['id']}"
-      end
+      [blogs, next_cursor, has_more]
+    end
 
-      render json: { blogs: formatted, next_cursor: next_cursor, has_more: has_more }, status: :ok
-    rescue => e
-      Rails.logger.error("prefered_blogs error: #{e.class} #{e.message}\n#{e.backtrace.take(12).join("\n")}")
-      render json: { error: "Failed to fetch blogs" }, status: :internal_server_error
+    def build_next_cursor(page_rows)
+      return nil unless page_rows.any?
+
+      last = page_rows.last
+      t = last["created_at"]
+      iso = t.respond_to?(:utc) ? t.utc.iso8601 : Time.parse(t.to_s).utc.iso8601
+      "#{last['priority'].to_i}|#{iso}|#{last['id']}"
     end
 
 
