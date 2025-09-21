@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import BlogFeed from "./Blogfeed";
 
 const PreferredBlogs = ({ user }) => {
+
+
     const [blogs, setBlogs] = useState([]);
     const [error, setError] = useState("");
     const [activeTab, setActiveTab] = useState("recommended");
@@ -15,14 +17,19 @@ const PreferredBlogs = ({ user }) => {
     const loadMoreRef = useRef(null);
     const loadingRef = useRef(false);
     const hasMoreRef = useRef(true);
+    const cursorRef = useRef(null);
+    const firstLoadDone = useRef(false);
 
     const token = localStorage.getItem("token");
     const navigate = useNavigate();
 
     useEffect(() => { loadingRef.current = loading; }, [loading]);
     useEffect(() => { hasMoreRef.current = hasMore; }, [hasMore]);
+    useEffect(() => { cursorRef.current = cursor; }, [cursor]);
+
 
     const fetchBlogs = useCallback(async () => {
+
         if (!token) return;
         if (loadingRef.current) return;
         if (!hasMoreRef.current) return;
@@ -36,7 +43,9 @@ const PreferredBlogs = ({ user }) => {
                     ? "/api/blog/prefered_blogs?limit=10"
                     : "/user/following_blogs?limit=10";
 
-            if (cursor) url += `&after=${encodeURIComponent(cursor)}`;
+            if (cursorRef.current) url += `&after=${encodeURIComponent(cursorRef.current)}`;
+
+
 
             const res = await fetch(url, {
                 headers: { Authorization: `Bearer ${token}` },
@@ -57,10 +66,14 @@ const PreferredBlogs = ({ user }) => {
                 if (unique.length !== incoming.length) {
                     console.warn("Filtered duplicates:", incoming.map(b => b.id).filter(id => existing.has(id)));
                 }
+              //  console.log("unique IDs that will be appended:", unique.map(b => b.id));
+
                 return [...prev, ...unique];
             });
 
+
             setCursor(data.next_cursor || null);
+           // console.log("Next cursor set from API:", data.next_cursor);
             setHasMore(Boolean(data.has_more));
         } catch (err) {
             console.error("fetchBlogs error:", err);
@@ -69,26 +82,30 @@ const PreferredBlogs = ({ user }) => {
             setLoading(false);
             loadingRef.current = false;
         }
-    }, [token, activeTab, cursor]);
+    }, [token, activeTab]);
 
     // reset when switching tabs
     useEffect(() => {
+        if (!user) return;
         setBlogs([]);
-        setCursor(null);
-        setHasMore(true);
-        setError("");
-        fetchBlogs();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeTab, token]);
+        setCursor(null); setHasMore(true);
+        setError(""); firstLoadDone.current = false;
+        fetchBlogs().then(() => {
+            firstLoadDone.current = true;
+        });
+        }, [activeTab, token, fetchBlogs]);
 
-    // Intersection observer (triggers earlier for smoothness)
+    // Intersection observer
     useEffect(() => {
+        if (!firstLoadDone.current) return;
+
         const el = loadMoreRef.current;
         if (!el) return;
 
         const obs = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting) {
+                   // console.log("Observer triggered — fetchBlogs()");
                     fetchBlogs();
                 }
             },
@@ -101,7 +118,13 @@ const PreferredBlogs = ({ user }) => {
 
         obs.observe(el);
         return () => obs.disconnect();
-    }, [fetchBlogs]);
+    }, [fetchBlogs, firstLoadDone.current]);
+
+    // Debug: log whenever blogs state updates
+  /*  useEffect(() => {
+        console.log("Blogs state length now:", blogs.length);
+        console.log("Blog IDs in state:", blogs.map(b => b.id));
+    }, [blogs]); */
 
     const handleCreateBlog = () => navigate("/Blog");
 
