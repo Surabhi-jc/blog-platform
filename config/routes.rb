@@ -15,19 +15,52 @@ Rails.application.routes.draw do
 
   #route for user signup
   post "/api/signup", to: "users#create"
+  get "/user/me", to: "users#me"
+  put "/user/update", to: "users#update"
   post "/api/login", to: "authentication#login"
-  post "/blog", to: "blogs#create"
-  patch "/blog/:id", to: "blogs#update"
-  delete "/blog/:id", to: "blogs#destroy"
+
+  # follow / Unfollow
+  post   "/user/:id/follow",   to: "follows#follow"
+  delete "/user/:id/unfollow", to: "follows#unfollow"
+
+  # Followers / Following list
+  get "/user/:id/followers",   to: "follows#followers"
+  get "/user/:id/following",   to: "follows#following"
+
+  #get following authors blogs
+  get "/user/following_blogs", to: "blogs#following_blogs"
+
+  get "/user/my_deleted_blogs", to: "blogs#my_deleted_blogs"
+
+
+
+
+
+  post "/api/blog", to: "blogs#create"
+  put "/blog/:id", to: "blogs#update"
+  delete "/api/blog/:id", to: "blogs#destroy"
   get "/api/blog/show", to: "blogs#show"
   get "/api/blog/prefered_blogs", to: "blogs#prefered_blogs"
   get "/api/blog/:id", to: "blogs#show_blog"
   get "/api/blog/:id/is_liked", to: "blogs#is_liked"
+  get "/user/my_blogs", to: "blogs#my_blogs"
+  patch "/api/blog/:id/restore", to: "blogs#restore"
 
-  # resources :likes, only: [:create]
+  #admin route
+  namespace :admin do
+    get "blogs/active", to: "blogs#active"
+    get "blogs/deleted", to: "blogs#deleted"
+  end
+
+
+
   post "/api/likes", to: "likes#create"
   delete "/api/likes", to: "likes#destroy"
 
+  get "/api/tags", to: "tags#show_tags"
+
+  post "/blog/:id/comment", to: "comments#create"
+  delete "/api/blog/:id/comments/:comment_id", to: "comments#destroy"
 
 
 

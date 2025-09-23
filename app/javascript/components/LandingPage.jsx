@@ -1,57 +1,115 @@
-import React, {useEffect, useState} from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import "./LandingPage.css";
 import { useNavigate } from "react-router-dom";
+import BlogFeed from "./Blogfeed";
 
 const LandingPage = () => {
-  const [blogs, setBlogs] = useState([]);
-
-  //fetch blogs
-  useEffect(()=> {
-    fetch("/api/blog/show")
-    .then((response)=> response.json())
-    .then((data) => {
-      setBlogs(data);
-    })
-    .catch((error) => {
-      console.error("Error fetching blogs:", error);
-    });
-
-  }, []);
-
-  const navigate = useNavigate();
+    const [blogs, setBlogs] = useState([]);
+    const [cursor, setCursor] = useState(null);
+    const [hasMore, setHasMore] = useState(true);
+    const [loading, setLoading] = useState(false);
 
 
-  return (
-    <div>
-      <h1>Latest Blogs</h1>
-      <div>
-        <button onClick= {() => navigate("/signup")}>Sign up</button>
-        <button onClick= {() => navigate("/login")}>Login</button>
+    const loadingRef = useRef(false);
+    const hasMoreRef = useRef(true);
+    const loadMoreRef = useRef(null);
 
-      </div>
+    const navigate = useNavigate();
 
+    useEffect(() => { loadingRef.current = loading; }, [loading]);
+    useEffect(() => { hasMoreRef.current = hasMore; }, [hasMore]);
 
-      {blogs.length === 0 ? (
-        <p>Loading blogs..please wait</p>
-      ): (
-          <div className="blog-container">
-            {blogs.map((blog) => (
-          <div className="blog-card" key={blog.id} onClick={() => navigate(`/blogs/${blog.id}`)}>
-          <h2>{blog.title}</h2>
-            <p>Author: {blog.author_name}</p>
-            <p>Tags: {blog.tags.join(",")}</p> {/*Takes an array and combines it into a single string*/}
-          <p>Content: {blog.content}</p>
+    // Fetch function (uses cursor). Only depends on cursor.
+    const fetchBlogs = useCallback(async () => {
+        if (loadingRef.current) return;
+        if (!hasMoreRef.current) return;
 
+        setLoading(true);
+        loadingRef.current = true;
 
-          </div>
-        ))}
-          </div>
-      )}
-    </div>
+        try {
+            let url = `/api/blog/show?limit=10`;
+            if (cursor) url += `&after=${encodeURIComponent(cursor)}`;
 
-  );
+            console.log("Fetching:", url);
+            const res = await fetch(url);
+            if (!res.ok) {
+                console.error("Backend error fetching blogs", await res.text());
+                return;
+            }
+
+            const data = await res.json();
+            console.log("Fetched batch:", data.blogs?.length, "next_cursor:", data.next_cursor, "has_more:", data.has_more);
+
+            if (Array.isArray(data.blogs)) {
+                setBlogs(prev => {
+                    // dedupe by id
+                    const existing = new Set(prev.map(b => b.id));
+                    const newUnique = data.blogs.filter(b => !existing.has(b.id));
+                    if (newUnique.length !== data.blogs.length) {
+                        console.warn("Filtered duplicate ids:", data.blogs.map(b => b.id).filter(id => existing.has(id)));
+                    }
+                    return [...prev, ...newUnique];
+                });
+            }
+
+            setCursor(data.next_cursor || null);
+            setHasMore(!!data.has_more);
+        } catch (err) {
+            console.error("Error fetching blogs:", err);
+        } finally {
+            setLoading(false);
+            loadingRef.current = false;
+        }
+    }, [cursor]);
+
+    // initial load
+    useEffect(() => {
+        fetchBlogs();
+    }, []);
+
+    // IntersectionObserver to load more when sentinel is near viewport
+    useEffect(() => {
+        const el = loadMoreRef.current;
+        if (!el) return;
+
+        const observer = new IntersectionObserver(
+            entries => {
+                const ent = entries[0];
+                if (ent.isIntersecting) {
+                    console.log("Sentinel intersecting — requesting more");
+                    fetchBlogs();
+                }
+            },
+            {
+                root: null,
+                rootMargin: "300px", // triggers earlier for smoother loading
+                threshold: 0
+            }
+        );
+
+        observer.observe(el);
+        return () => {
+            observer.unobserve(el);
+        };
+    }, [fetchBlogs]);
+
+    return (
+        <div>
+            <h2 className="section-title text-center fw-normal mt-4">Latest Blogs</h2>
+
+            <BlogFeed blogs={blogs} setBlogs={setBlogs} showEdit={false} />
+
+            {/* Loader / sentinel */}
+            <div
+                ref={loadMoreRef}
+                style={{ height: "60px", display: "flex", alignItems: "center", justifyContent: "center" }}
+            >
+                {loading && <p className="text-center">Loading more blogs...</p>}
+                {!hasMore && <p className="text-center">No more blogs to show</p>}
+            </div>
+        </div>
+    );
 };
-
-
 
 export default LandingPage;

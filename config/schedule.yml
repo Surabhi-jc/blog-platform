@@ -1,0 +1,13 @@
+update_likes_count:
+  cron: "*/4 * * * *" # every 4 minutes
+  class: "UpdateLikesCountWorker"
+  queue: default
+  description: "Recalculate likes_count for all blogs every 4 minutes"
+
+update_comment_count:
+  cron: "*/4 * * * *"
+  class: "UpdateCommentsCountWorker"
+  queue: default
+
+
+

@@ -2,13 +2,14 @@
   "name": "app",
   "private": true,
   "devDependencies": {
-    "esbuild": "^0.25.6"
+    "esbuild": "^0.25.8"
   },
   "scripts": {
     "build": "esbuild app/javascript/*.* --bundle --sourcemap --format=esm --outdir=app/assets/builds --public-path=/assets --loader:.js=jsx"
   },
   "dependencies": {
     "@hotwired/turbo-rails": "^8.0.16",
+    "bootstrap": "^5.3.8",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "6"

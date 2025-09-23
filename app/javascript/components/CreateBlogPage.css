@@ -1,0 +1,103 @@
+.create-blog-container {
+    max-width: 600px;
+    margin: auto;
+    padding: 20px;
+    box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
+}
+
+.error-text {
+    color: red;
+}
+
+input,
+textarea {
+    width: 100%;
+    padding: 8px;
+    margin: 5px 0 15px;
+}
+
+.tag-selector {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.selected-tags-box {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    min-height: 30px;
+    border: 1px solid #ccc;
+    padding: 5px;
+    flex: 1;
+}
+
+.tag-item {
+    background: #eee;
+    padding: 3px 8px;
+    border-radius: 12px;
+    cursor: pointer;
+}
+
+.remove-tag {
+    margin-left: 5px;
+    cursor: pointer;
+    color: red;
+}
+
+.dropdown-toggle {
+    background: none;
+    border: 1px solid #ccc;
+    padding: 5px 8px;
+    cursor: pointer;
+}
+
+.dropdown-list {
+    border: 1px solid #ccc;
+    background: white;
+    margin-top: 5px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.dropdown-item {
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
+.dropdown-item:hover {
+    background: #f0f0f0;
+}
+
+.dropdown-item.selected {
+    background: #d0f0d0;
+}
+
+.publish-btn {
+    margin-top: 15px;
+    padding: 8px 12px;
+}
+
+.spinner {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 9px solid;
+    border-color: #dbdcef;
+    border-right-color: #474bff;
+    animation: spinner-d3wgkg 1s infinite linear;
+}
+
+@keyframes spinner-d3wgkg {
+    to {
+        transform: rotate(1turn);
+    }
+}
+
+.loader_container{
+    height: 80vh;
+    width: 100vw;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}

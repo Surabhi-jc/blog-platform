@@ -1,0 +1,63 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15
+    container_name: blog_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: blog_platform_development
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: blog_web
+    command: bash -c "rm -f tmp/pids/server.pid && ./wait-for-postgres.sh bin/dev"
+    volumes:
+      - .:/app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+      - redis
+    environment:
+      DATABASE_HOST: db
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+      DATABASE_NAME: blog_platform_development
+      REDIS_URL: redis://redis:6379/0
+
+  sidekiq:
+      build:
+        context: .
+        dockerfile: Dockerfile.dev
+      container_name: blog_sidekiq
+      command: bundle exec sidekiq
+      volumes:
+        - .:/app
+      depends_on:
+        - db
+        - redis
+      environment:
+        DATABASE_HOST: db
+        DATABASE_USER: postgres
+        DATABASE_PASSWORD: postgres
+        DATABASE_NAME: blog_platform_development
+        REDIS_URL: redis://redis:6379/0
+
+  redis:
+    image: redis:7
+    container_name: blog_redis
+    restart: always
+
+
+
+volumes:
+  db_data:

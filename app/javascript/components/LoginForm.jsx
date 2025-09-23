@@ -1,7 +1,8 @@
 import React, { useState} from "react";
 import { useNavigate } from "react-router-dom";
+import "./LoginForm.css";
 
-const LoginForm = () => {
+const LoginForm = ({ setUser }) => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
@@ -11,8 +12,6 @@ const LoginForm = () => {
 
     const handleLogin = async (e) => {
         e.preventDefault();
-
-
 
         try{
             const response = await fetch("/api/login", {
@@ -28,10 +27,20 @@ const LoginForm = () => {
                 throw new Error(data.error || "Login failed");
             }
 
-            sessionStorage.setItem("token", data.token);
-            navigate("/blogs/prefered_blogs");
-            //setSuccess("Login successful!");
-            //setError("");
+            localStorage.setItem("token", data.token);
+            setUser(data.user);
+
+            const redirectPath= localStorage.getItem("redirectAfterLogin");
+            if(redirectPath){
+                localStorage.removeItem("redirectAfterLogin");
+                navigate(redirectPath);
+            }
+            else{
+                navigate("/blogs/prefered_blogs");
+                //setSuccess("Login successful!");
+                //setError("");
+            }
+
 
 
         }catch(err){
@@ -41,35 +50,42 @@ const LoginForm = () => {
     };
 
     return (
-        <div className="login-form">
-            <h2>Login</h2>
-            {error && <p style={{ color: "red" }}>{error}</p>}
-            {success && <p style={{ color: "green" }}>{success}</p>}
+        <div className="modal-overlay">
+            <div className= "modal-box">
+                <button className= "close-btn" onClick={() => navigate("/")}>x</button>
 
-            <form onSubmit={handleLogin}>
-                <div>
-                    <label>Email:</label>
+                <h2>Login</h2>
+                {error && <p style={{ color: "red" }}>{error}</p>}
+                {success && <p style={{ color: "green" }}>{success}</p>}
+
+                <form onSubmit={handleLogin} className="auth-form">
                     <input
                         type="email"
+                        placeholder="Email"
                         value={email}
                         required
                         onChange={(e) => setEmail(e.target.value)}
                     />
-                </div>
 
-                <div>
-                    <label>Password:</label>
                     <input
                         type="password"
+                        placeholder="Password"
                         value={password}
                         required
                         onChange={(e) => setPassword(e.target.value)}
                     />
-                </div>
 
-                <button type="submit">Login</button>
-            </form>
+                    <button type="submit">Login</button>
+
+                </form>
+                <p>
+                    New here? <span className="link" onClick={() => navigate("/signup")}>Sign up </span>
+                </p>
+            </div>
         </div>
+
+
+
     );
 };
 

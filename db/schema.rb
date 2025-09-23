@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_07_18_092007) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_23_103225) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -19,7 +19,9 @@ ActiveRecord::Schema[8.0].define(version: 2025_07_18_092007) do
     t.bigint "tag_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["blog_id", "tag_id"], name: "index_blog_tags_on_blog_id_and_tag_id"
     t.index ["blog_id"], name: "index_blog_tags_on_blog_id"
+    t.index ["tag_id", "blog_id"], name: "index_blog_tags_on_tag_id_and_blog_id"
     t.index ["tag_id"], name: "index_blog_tags_on_tag_id"
   end
 
@@ -29,7 +31,40 @@ ActiveRecord::Schema[8.0].define(version: 2025_07_18_092007) do
     t.bigint "user_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "likes_count", default: 0, null: false
+    t.datetime "deleted_at"
+    t.bigint "deleted_by_id"
+    t.integer "comments_count", default: 0, null: false
+    t.index ["created_at", "id"], name: "idx_blogs_not_deleted_created_id", order: :desc, where: "(deleted_at IS NULL)"
+    t.index ["deleted_at"], name: "index_blogs_on_deleted_at"
+    t.index ["deleted_by_id"], name: "index_blogs_on_deleted_by_id"
+    t.index ["likes_count"], name: "index_blogs_on_likes_count"
     t.index ["user_id"], name: "index_blogs_on_user_id"
+  end
+
+  create_table "comments", force: :cascade do |t|
+    t.text "content", null: false
+    t.bigint "user_id", null: false
+    t.bigint "blog_id", null: false
+    t.bigint "parent_comment_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.datetime "deleted_at"
+    t.bigint "deleted_by_id"
+    t.index ["blog_id"], name: "index_comments_on_blog_id"
+    t.index ["deleted_at"], name: "index_comments_on_deleted_at"
+    t.index ["deleted_by_id"], name: "index_comments_on_deleted_by_id"
+    t.index ["user_id"], name: "index_comments_on_user_id"
+  end
+
+  create_table "follows", force: :cascade do |t|
+    t.bigint "follower_id", null: false
+    t.bigint "followed_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["followed_id"], name: "index_follows_on_followed_id"
+    t.index ["follower_id", "followed_id"], name: "index_follows_on_follower_and_followed", unique: true
+    t.check_constraint "follower_id <> followed_id", name: "follows_no_self_follow"
   end
 
   create_table "likes", force: :cascade do |t|
@@ -69,6 +104,13 @@ ActiveRecord::Schema[8.0].define(version: 2025_07_18_092007) do
   add_foreign_key "blog_tags", "blogs"
   add_foreign_key "blog_tags", "tags"
   add_foreign_key "blogs", "users"
+  add_foreign_key "blogs", "users", column: "deleted_by_id"
+  add_foreign_key "comments", "blogs"
+  add_foreign_key "comments", "comments", column: "parent_comment_id"
+  add_foreign_key "comments", "users"
+  add_foreign_key "comments", "users", column: "deleted_by_id"
+  add_foreign_key "follows", "users", column: "followed_id", on_delete: :cascade
+  add_foreign_key "follows", "users", column: "follower_id", on_delete: :cascade
   add_foreign_key "likes", "blogs"
   add_foreign_key "likes", "users"
   add_foreign_key "user_tags", "tags"
