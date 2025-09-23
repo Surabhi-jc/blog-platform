@@ -1,7 +1,9 @@
 # app/services/prefered_blogs_fallback.rb
 class PreferedBlogsFallback
+
   def self.fetch(user_id:, limit:, after:, cached_rows:, tag_ids:)
-    new(user_id, limit.to_i, after, cached_rows, tag_ids).fetch
+    service = new(user_id, limit.to_i, after, cached_rows, tag_ids)
+    service.fetch
   end
 
   def self.fetch_top_rows(tag_ids:)
@@ -45,7 +47,7 @@ class PreferedBlogsFallback
 
   # returns [source_rows_array, used_cache_boolean]
   def fetch
-    # try cached slice only when both cached rows and a cursor are present
+
     if @cached.any? && @after.present?
       Rails.logger.info("[PreferedBlogsFallback] try cached slice (cached_count=#{@cached.length})")
       pr, created_at_str, id_str = @after.split("|", 3)

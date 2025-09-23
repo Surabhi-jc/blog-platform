@@ -305,7 +305,7 @@ class BlogsController < ApplicationController
         return render json: { blogs: blogs, next_cursor: next_cursor, has_more: has_more }, status: :ok
       end
 
-      # after present -> try to use cached slice (if cached_rows supplied) else DB fallback
+      # if after present and cached_rows supplied then from cache, else from DB
       source_rows, used_cache = PreferedBlogsFallback.fetch(
         user_id: user_id,
         limit: limit,
